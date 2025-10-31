@@ -10,10 +10,10 @@ from logger import logger
 
 #  Configuration 
 
-size = 100
+size = 150000
 retry_num = 3
-max_threads = 3
-checkpoint_every = 10
+max_threads = 15
+checkpoint_every = 1000
 
 os.makedirs("./checkpoints", exist_ok=True)
 os.makedirs("./raw_data", exist_ok=True)
