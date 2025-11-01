@@ -19,11 +19,6 @@ os.makedirs("./checkpoints", exist_ok=True)
 os.makedirs("./raw_data", exist_ok=True)
 
 def get_latest_checkpoint(folder="./checkpoints"):
-    """
-    Finds the latest checkpoint numbers for biodata and results files.
-    Returns a tuple: (latest_bio, latest_results)
-    Each value may be None if no matching files exist.
-    """
 
     if not os.path.exists(folder):
         os.makedirs(folder)
@@ -83,10 +78,6 @@ def results_table_df(soup, i):
     return df
 
 def scrape_athlete(i, session):
-    """
-    Fetches and parses biodata and results for a single athlete ID.
-    Returns (i, biodata_df, results_df) or raises an exception if something goes wrong.
-    """
     
     time.sleep(random.uniform(0.5, 1.5))
 
