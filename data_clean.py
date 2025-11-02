@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import re, os
 
 from logger import logger
@@ -53,17 +54,59 @@ def location_parsing(df):
     df[['Born_City', 'Born_Region', 'Born_Country']] = df['Born'].str.extract(location_pattern, expand=True)
     return df
 
+
 def affiliations_parsing(df):
 
     df = df.copy()
 
-    df[['Affiliations_Club', 'Affiliations_City', 'Affiliations_Country']] = (
-        df['Affiliations']
-        .astype(str)
-        .str.strip()
-        .str.extract(r'^(.+?)(?:,\s*(.+?))?(?:\s*\((.+?)\))?$')
+    # Split multiple affiliations into separate rows
+    df = df.assign(Affiliations=df['Affiliations'].astype(str))
+    df = df.dropna(subset=['Affiliations'])
+    df = df.assign(Affiliations=df['Affiliations'].str.split(r'\s*/\s*'))
+    df = df.explode('Affiliations').reset_index(drop=True)
+
+    # Extract components: Club, City, Country
+    extracted = df['Affiliations'].str.extract(r'^(.+?)(?:,\s*(.+?))?(?:\s*\((.+?)\))?$')
+    extracted.columns = ['Affiliations_Club', 'Affiliations_City', 'Affiliations_Country']
+
+    df = pd.concat([df[['Athlete_Id']], extracted], axis=1)
+
+    # Drop duplicates to get unique affiliations
+    dim_affiliation = (
+        df[['Affiliations_Club', 'Affiliations_City', 'Affiliations_Country']]
+        .drop_duplicates()
+        .reset_index(drop=True)
+        .reset_index(names='Affiliation_Id')
     )
-    return df
+
+    # Bridge table linking athletes to affiliations
+    bridge_athlete_affiliation = (
+        df.merge(
+            dim_affiliation,
+            on=['Affiliations_Club', 'Affiliations_City', 'Affiliations_Country'],
+            how='left'
+        )[["Athlete_Id", "Affiliation_Id"]]
+        .drop_duplicates()
+        .reset_index(drop=True)
+    )
+
+
+    # dim_affiliation['Affiliations_City'] might contain something like "(POR)"
+
+    # Pattern to match a string like "(XXX)" where X is any letter
+    pattern = r'^\(([A-Za-z]{3})\)$'
+
+    mask = dim_affiliation['Affiliations_City'].str.match(pattern, na=False)
+
+    dim_affiliation.loc[mask, 'Affiliations_Country'] = (
+        dim_affiliation.loc[mask, 'Affiliations_City']
+        .str.extract(pattern)[0]
+    )
+
+    dim_affiliation.loc[mask, 'Affiliations_City'] = np.nan
+    
+    return dim_affiliation, bridge_athlete_affiliation
+
 
 def roles_parsing(df):
 
@@ -80,12 +123,13 @@ def clean_biodata(df):
     df = measurements_parsing(df)
     df = date_parsing(df)
     df = location_parsing(df)
-    df = affiliations_parsing(df)
     df = roles_parsing(df)
+
+    dim_affiliation, bridge_athlete_affiliation = affiliations_parsing(df)
 
     columns_to_drop = [ 'Used name', 'Born', 'Died', 'Full name', 'Measurements', 'Affiliations','Title(s)',  'Nationality', 'Other names', 'Original name', 'Name order', 'Nick/petnames']
     df = drop_invalid_columns(df, columns_to_drop)
-    return df
+    return df, dim_affiliation, bridge_athlete_affiliation
 
 
 
@@ -210,8 +254,10 @@ if __name__ == "__main__":
 
 
         logger.info("Cleaning bios data")
-        bios_df = clean_biodata(bios_df)
+        bios_df, dim_affiliation_df, bridge_athlete_affiliation_df = clean_biodata(bios_df)
         logger.info(f"Biodata cleaned: {len(bios_df)} rows")
+        logger.info(f"dim_affiliation cleaned: {len(dim_affiliation_df)} rows")
+        logger.info(f"bridge_athlete_affiliation_df cleaned: {len(dim_affiliation_df)} rows")
 
         logger.info("Cleaning results data")
         results_df = clean_results(results_df)
@@ -223,13 +269,25 @@ if __name__ == "__main__":
 
 
 
-        bios_df.to_parquet('./clean_data/cleaned_biodata.parquet', index=False)
+        # bios_df.to_parquet('./clean_data/cleaned_biodata.parquet', index=False)
+        # logger.info("Saved bios data")
+
+        # results_df.to_parquet('./clean_data/cleaned_results.parquet', index=False)
+        # logger.info("Saved results data")
+
+        # editions_df.to_parquet('./clean_data/cleaned_editions.parquet', index=False)
+        # logger.info("Saved editions data")
+
+
+        bios_df.to_csv('./clean_data/cleaned_biodata.csv', index=False)
+        dim_affiliation_df.to_csv('./clean_data/dim_affiliation.csv', index=False)
+        bridge_athlete_affiliation_df.to_csv('./clean_data/bridge_athlete_affiliation.csv', index=False)
         logger.info("Saved bios data")
 
-        results_df.to_parquet('./clean_data/cleaned_results.parquet', index=False)
+        results_df.to_csv('./clean_data/cleaned_results.csv', index=False)
         logger.info("Saved results data")
 
-        editions_df.to_parquet('./clean_data/cleaned_editions.parquet', index=False)
+        editions_df.to_csv('./clean_data/cleaned_editions.csv', index=False)
         logger.info("Saved editions data")
 
     except Exception as e:
