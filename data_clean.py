@@ -67,13 +67,13 @@ def affiliations_parsing(df):
 
     # Extract components: Club, City, Country
     extracted = df['Affiliations'].str.extract(r'^(.+?)(?:,\s*(.+?))?(?:\s*\((.+?)\))?$')
-    extracted.columns = ['Affiliations_Club', 'Affiliations_City', 'Affiliations_Country']
+    extracted.columns = ['Affiliation_Club', 'Affiliation_City', 'Affiliation_Country']
 
     df = pd.concat([df[['Athlete_Id']], extracted], axis=1)
 
     # Drop duplicates to get unique affiliations
     dim_affiliation = (
-        df[['Affiliations_Club', 'Affiliations_City', 'Affiliations_Country']]
+        df[['Affiliation_Club', 'Affiliation_City', 'Affiliation_Country']]
         .drop_duplicates()
         .reset_index(drop=True)
         .reset_index(names='Affiliation_Id')
@@ -83,7 +83,7 @@ def affiliations_parsing(df):
     bridge_athlete_affiliation = (
         df.merge(
             dim_affiliation,
-            on=['Affiliations_Club', 'Affiliations_City', 'Affiliations_Country'],
+            on=['Affiliation_Club', 'Affiliation_City', 'Affiliation_Country'],
             how='left'
         )[["Athlete_Id", "Affiliation_Id"]]
         .drop_duplicates()
@@ -96,14 +96,14 @@ def affiliations_parsing(df):
     # Pattern to match a string like "(XXX)" where X is any letter
     pattern = r'^\(([A-Za-z]{3})\)$'
 
-    mask = dim_affiliation['Affiliations_City'].str.match(pattern, na=False)
+    mask = dim_affiliation['Affiliation_City'].str.match(pattern, na=False)
 
-    dim_affiliation.loc[mask, 'Affiliations_Country'] = (
-        dim_affiliation.loc[mask, 'Affiliations_City']
+    dim_affiliation.loc[mask, 'Affiliation_Country'] = (
+        dim_affiliation.loc[mask, 'Affiliation_City']
         .str.extract(pattern)[0]
     )
 
-    dim_affiliation.loc[mask, 'Affiliations_City'] = np.nan
+    dim_affiliation.loc[mask, 'Affiliation_City'] = np.nan
     
     return dim_affiliation, bridge_athlete_affiliation
 
@@ -117,13 +117,98 @@ def roles_parsing(df):
 
 
 
-def clean_biodata(df):
+
+
+def noc_parsing(df,countries_df):
+        
+    df =df.copy()
+    countries_df = countries_df.copy()
+        
+    # Normalize valid country names
+    valid_countries = countries_df["English short name lower case"].str.lower().str.strip().tolist()
+
+    # Legacy / historical mappings
+    legacy_map = {
+        "west germany": "germany",
+        "east germany": "germany",
+        "germany west germany": "germany",
+        "germany saar": "germany",
+        "german democratic republic": "germany",
+        "saar": "germany",
+        "soviet union": "russian federation",
+        "ussr": "russian federation",
+        "unified team": "russian federation",
+        "czechoslovakia": "czechia",
+        "bohemia": "czechia",
+        "yugoslavia": "serbia",
+        "serbia and montenegro": "serbia",
+        "rhodesia": "zimbabwe",
+        "malaya": "malaysia",
+        "north yemen": "yemen",
+        "south yemen": "yemen",
+        "burma": "myanmar",
+        "peoples republic of china": "china",
+        "republic of korea": "south korea",
+        "korea team": "south korea",
+        "democratic people's republic of korea": "north korea",
+        "islamic republic of iran": "iran",
+        "kingdom of saudi arabia": "saudi arabia",
+        "united arab republic": "egypt",
+        "republic of moldova": "moldova",
+        "roc": "russian federation",
+        "great britain": "united kingdom",
+        "the bahamas": "bahamas",
+        "hong kong, china": "hong kong",
+        "taiwan": "chinese taipei",
+        "viet nam": "vietnam",
+    }
+
+    def extract_valid_nocs(noc_str):
+        if pd.isna(noc_str):
+            return []
+
+        s = noc_str.lower().strip()
+
+        # replace legacy names first
+        for old, new in legacy_map.items():
+            if old in s:
+                s = s.replace(old, new)
+
+        # normalize punctuation and separators
+        s = re.sub(r"[/,;]", " ", s)
+        s = re.sub(r"\band\b", " ", s)
+        s = re.sub(r"\s+", " ", s).strip()
+
+        found = set()
+
+        # try matching full country names first (longest names first to avoid partials)
+        for country in sorted(valid_countries, key=len, reverse=True):
+            # use boundary-safe regex but require whole phrase match
+            pattern = rf'(?<!\w){re.escape(country)}(?!\w)'
+            if re.search(pattern, s):
+                found.add(country)
+                # optionally, remove the matched country from string to avoid overlap
+                s = re.sub(pattern, " ", s)
+
+        # Keep unmatched NOC as-is
+        if not found:
+            return [noc_str.lower().strip()]
+
+        return sorted(found)
+
+    df["NOC"] = df["NOC"].apply(extract_valid_nocs)
+
+    return df
+
+
+def clean_biodata(df,countries_df):
 
     df = name_parsing(df)
     df = measurements_parsing(df)
     df = date_parsing(df)
     df = location_parsing(df)
     df = roles_parsing(df)
+    df = noc_parsing(df,countries_df)
 
     dim_affiliation, bridge_athlete_affiliation = affiliations_parsing(df)
 
@@ -243,18 +328,20 @@ if __name__ == "__main__":
         os.makedirs("./clean_data", exist_ok=True)
 
         bios_df = pd.read_csv("./raw_data/biodata.csv")
-        logger.info("Read biodata.csv")
+        logger.info("Read biodata")
+        countries_df = pd.read_csv("./data/wikipedia-iso-country-codes.csv")
+        logger.info("Read wikipedia-iso-country-codes")
 
         results_df = pd.read_csv("./raw_data/results.csv")
-        logger.info("Read results.csv")
+        logger.info("Read results")
 
         editions_df = pd.read_csv("./raw_data/editions.csv")
-        logger.info("Read editions.csv")
+        logger.info("Read editions")
 
 
 
         logger.info("Cleaning bios data")
-        bios_df, dim_affiliation_df, bridge_athlete_affiliation_df = clean_biodata(bios_df)
+        bios_df, dim_affiliation_df, bridge_athlete_affiliation_df = clean_biodata(bios_df,countries_df)
         logger.info(f"Biodata cleaned: {len(bios_df)} rows")
         logger.info(f"dim_affiliation cleaned: {len(dim_affiliation_df)} rows")
         logger.info(f"bridge_athlete_affiliation_df cleaned: {len(dim_affiliation_df)} rows")
