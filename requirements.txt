@@ -4,4 +4,7 @@ beautifulsoup4
 lxml
 pyarrow
 html5lib
+great-expectations
+pandera
+rapidfuzz
 

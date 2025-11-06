@@ -62,9 +62,6 @@ def game_table_df(session):
     # Combine all tables
     editions_df = pd.concat(tables, ignore_index=True)
 
-    # editions_df.to_csv("./raw_data/olympic_editions_with_noc.csv", index=False)
-    # print(f"✅ Saved {len(editions_df)} rows with NOC codes extracted.")
-
     return editions_df
 
 

@@ -43,6 +43,9 @@ def date_parsing(df):
 
     df['Died_Date'] = df['Died'].str.extract(date_pattern)
     df['Died_Date'] = pd.to_datetime(df['Died_Date'], format="mixed", errors='coerce')
+
+    df['Is_Alive'] = df['Died_Date'].isna()
+    
     return df
 
 def location_parsing(df):
@@ -122,8 +125,7 @@ def roles_parsing(df):
 def noc_parsing(df,countries_df):
         
     df =df.copy()
-    countries_df = countries_df.copy()
-        
+  
     # Normalize valid country names
     valid_countries = countries_df["English short name lower case"].str.lower().str.strip().tolist()
 
@@ -344,7 +346,7 @@ if __name__ == "__main__":
         bios_df, dim_affiliation_df, bridge_athlete_affiliation_df = clean_biodata(bios_df,countries_df)
         logger.info(f"Biodata cleaned: {len(bios_df)} rows")
         logger.info(f"dim_affiliation cleaned: {len(dim_affiliation_df)} rows")
-        logger.info(f"bridge_athlete_affiliation_df cleaned: {len(dim_affiliation_df)} rows")
+        logger.info(f"bridge_athlete_affiliation_df cleaned: {len(bridge_athlete_affiliation_df)} rows")
 
         logger.info("Cleaning results data")
         results_df = clean_results(results_df)
