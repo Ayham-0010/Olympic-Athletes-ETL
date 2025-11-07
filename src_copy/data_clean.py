@@ -303,6 +303,19 @@ def rename_comments_column(df):
     df = df.rename(columns={'Unnamed: 7':'Comments'})
     return df
 
+def adding_game_id_column(df):
+
+    df = df.copy()
+    df = df.sort_values(
+        by=["Year", "Game_Type", "Edition_Name"],
+        ascending=[True, True, True]
+    ).reset_index(drop=True)
+
+    # Add incremental surrogate key (game_id)
+    df["Game_Id"] = range(1, len(df) + 1)
+    return df
+
+
 
 def clean_editions(df):
 
@@ -318,26 +331,27 @@ def clean_editions(df):
 
     columns_to_drop = ['#', 'Competition']
     df = drop_invalid_columns(df, columns_to_drop)
+    df =  adding_game_id_column(df)
 
     return df
 
 
 
-
-if __name__ == "__main__":
+# if __name__ == "__main__":
+def data_clean_I():
 
     try:
-        os.makedirs("./clean_data", exist_ok=True)
+        os.makedirs("../clean_data", exist_ok=True)
 
-        bios_df = pd.read_csv("./raw_data/biodata.csv")
+        bios_df = pd.read_csv("../raw_data/biodata.csv")
         logger.info("Read biodata")
-        countries_df = pd.read_csv("./data/wikipedia-iso-country-codes.csv")
+        countries_df = pd.read_csv("../data/wikipedia-iso-country-codes.csv")
         logger.info("Read wikipedia-iso-country-codes")
 
-        results_df = pd.read_csv("./raw_data/results.csv")
+        results_df = pd.read_csv("../raw_data/results.csv")
         logger.info("Read results")
 
-        editions_df = pd.read_csv("./raw_data/editions.csv")
+        editions_df = pd.read_csv("../raw_data/editions.csv")
         logger.info("Read editions")
 
 
@@ -368,15 +382,15 @@ if __name__ == "__main__":
         # logger.info("Saved editions data")
 
 
-        bios_df.to_csv('./clean_data/cleaned_biodata.csv', index=False)
-        dim_affiliation_df.to_csv('./clean_data/dim_affiliation.csv', index=False)
-        bridge_athlete_affiliation_df.to_csv('./clean_data/bridge_athlete_affiliation.csv', index=False)
+        bios_df.to_csv('../clean_data/cleaned_biodata.csv', index=False)
+        dim_affiliation_df.to_csv('../clean_data/dim_affiliation.csv', index=False)
+        bridge_athlete_affiliation_df.to_csv('../clean_data/bridge_athlete_affiliation.csv', index=False)
         logger.info("Saved bios data")
 
-        results_df.to_csv('./clean_data/cleaned_results.csv', index=False)
+        results_df.to_csv('../clean_data/cleaned_results.csv', index=False)
         logger.info("Saved results data")
 
-        editions_df.to_csv('./clean_data/cleaned_editions.csv', index=False)
+        editions_df.to_csv('../clean_data/cleaned_editions.csv', index=False)
         logger.info("Saved editions data")
 
     except Exception as e:

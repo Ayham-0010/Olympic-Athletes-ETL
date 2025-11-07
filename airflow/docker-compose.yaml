@@ -59,6 +59,8 @@ x-airflow-common:
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
     AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
     AIRFLOW__API__AUTH_BACKENDS: 'airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session'
+    PYTHONPATH: /opt/airflow
+
     # yamllint disable rule:line-length
     # Use simple http server on scheduler for health checks
     # See https://airflow.apache.org/docs/apache-airflow/stable/administration-and-deployment/logging-monitoring/check-health.html#scheduler-health-check-server
@@ -75,6 +77,8 @@ x-airflow-common:
     - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
     - ${AIRFLOW_PROJ_DIR:-.}/config:/opt/airflow/config
     - ${AIRFLOW_PROJ_DIR:-.}/plugins:/opt/airflow/plugins
+    - ../src:/opt/airflow/src
+
   user: "${AIRFLOW_UID:-50000}:0"
   depends_on:
     &airflow-common-depends-on
@@ -234,7 +238,6 @@ services:
   pgadmin:
     image: dpage/pgadmin4
     restart: on-failure
-    container_name: pgadmin_airflow
     environment:
       - PGADMIN_DEFAULT_EMAIL=postgres@pgadmin.db
       - PGADMIN_DEFAULT_PASSWORD=postgres
@@ -244,6 +247,6 @@ services:
       - ./pgadmin-data:/var/lib/pgadmin
 
 
-
 volumes:
   postgres-db-volume:
+  pgadmin-data:
