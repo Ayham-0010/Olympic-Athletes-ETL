@@ -17,6 +17,7 @@ logs/
 
 postgres-db-volume/
 pgadmin-data/
+minio-data/
 
 # Airflow local files
 airflow.db

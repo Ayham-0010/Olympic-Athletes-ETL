@@ -19,7 +19,7 @@ default_args = {
 
 with DAG (
 
-    dag_id='Olympic_Athletes_ETL_DAG',
+    dag_id='Olympic_Athletes_ETL_DAG_V1',
     description='practice',
     default_args=default_args,
     start_date=datetime(2025,11,7),

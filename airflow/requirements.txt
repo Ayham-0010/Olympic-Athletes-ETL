@@ -1,2 +1,14 @@
 apache-airflow-providers-postgres==5.6.0
 apache-airflow-providers-amazon==9.6.0
+pandas
+requests
+beautifulsoup4
+lxml
+pyarrow
+html5lib
+pandera
+rapidfuzz
+s3fs 
+
+
+

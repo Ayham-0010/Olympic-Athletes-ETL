@@ -1,5 +1,7 @@
 import pandas as pd
 import numpy as np
+import boto3
+import s3fs
 import re, os
 
 from .logger import logger
@@ -337,63 +339,103 @@ def clean_editions(df):
 
 
 
-# if __name__ == "__main__":
-def data_clean_I():
+# # if __name__ == "__main__":
+# def data_clean_I():
 
-    try:
-        os.makedirs("../clean_data", exist_ok=True)
+#     try:
+#         os.makedirs("../clean_data", exist_ok=True)
 
-        bios_df = pd.read_csv("../raw_data/biodata.csv")
-        logger.info("Read biodata")
-        countries_df = pd.read_csv("../data/wikipedia-iso-country-codes.csv")
-        logger.info("Read wikipedia-iso-country-codes")
+#         bios_df = pd.read_csv("../raw_data/biodata.csv")
+#         logger.info("Read biodata")
+#         countries_df = pd.read_csv("../data/wikipedia-iso-country-codes.csv")
+#         logger.info("Read wikipedia-iso-country-codes")
 
-        results_df = pd.read_csv("../raw_data/results.csv")
-        logger.info("Read results")
+#         results_df = pd.read_csv("../raw_data/results.csv")
+#         logger.info("Read results")
 
-        editions_df = pd.read_csv("../raw_data/editions.csv")
-        logger.info("Read editions")
-
-
-
-        logger.info("Cleaning bios data")
-        bios_df, dim_affiliation_df, bridge_athlete_affiliation_df = clean_biodata(bios_df,countries_df)
-        logger.info(f"Biodata cleaned: {len(bios_df)} rows")
-        logger.info(f"dim_affiliation cleaned: {len(dim_affiliation_df)} rows")
-        logger.info(f"bridge_athlete_affiliation_df cleaned: {len(bridge_athlete_affiliation_df)} rows")
-
-        logger.info("Cleaning results data")
-        results_df = clean_results(results_df)
-        logger.info(f"Results cleaned: {len(results_df)} rows")
-
-        logger.info("Cleaning editions data")        
-        editions_df = clean_editions(editions_df)
-        logger.info(f"Editions cleaned: {len(editions_df)} rows")
+#         editions_df = pd.read_csv("../raw_data/editions.csv")
+#         logger.info("Read editions")
 
 
 
-        # bios_df.to_parquet('./clean_data/cleaned_biodata.parquet', index=False)
-        # logger.info("Saved bios data")
+#         logger.info("Cleaning bios data")
+#         bios_df, dim_affiliation_df, bridge_athlete_affiliation_df = clean_biodata(bios_df,countries_df)
+#         logger.info(f"Biodata cleaned: {len(bios_df)} rows")
+#         logger.info(f"dim_affiliation cleaned: {len(dim_affiliation_df)} rows")
+#         logger.info(f"bridge_athlete_affiliation_df cleaned: {len(bridge_athlete_affiliation_df)} rows")
 
-        # results_df.to_parquet('./clean_data/cleaned_results.parquet', index=False)
-        # logger.info("Saved results data")
+#         logger.info("Cleaning results data")
+#         results_df = clean_results(results_df)
+#         logger.info(f"Results cleaned: {len(results_df)} rows")
 
-        # editions_df.to_parquet('./clean_data/cleaned_editions.parquet', index=False)
-        # logger.info("Saved editions data")
+#         logger.info("Cleaning editions data")        
+#         editions_df = clean_editions(editions_df)
+#         logger.info(f"Editions cleaned: {len(editions_df)} rows")
 
 
-        bios_df.to_csv('../clean_data/cleaned_biodata.csv', index=False)
-        dim_affiliation_df.to_csv('../clean_data/dim_affiliation.csv', index=False)
-        bridge_athlete_affiliation_df.to_csv('../clean_data/bridge_athlete_affiliation.csv', index=False)
-        logger.info("Saved bios data")
 
-        results_df.to_csv('../clean_data/cleaned_results.csv', index=False)
-        logger.info("Saved results data")
+#         # bios_df.to_parquet('./clean_data/cleaned_biodata.parquet', index=False)
+#         # logger.info("Saved bios data")
 
-        editions_df.to_csv('../clean_data/cleaned_editions.csv', index=False)
-        logger.info("Saved editions data")
+#         # results_df.to_parquet('./clean_data/cleaned_results.parquet', index=False)
+#         # logger.info("Saved results data")
 
-    except Exception as e:
-        logger.exception(f"Error during cleaning pipeline: {e}")
+#         # editions_df.to_parquet('./clean_data/cleaned_editions.parquet', index=False)
+#         # logger.info("Saved editions data")
+
+
+#         bios_df.to_csv('../clean_data/cleaned_biodata.csv', index=False)
+#         dim_affiliation_df.to_csv('../clean_data/dim_affiliation.csv', index=False)
+#         bridge_athlete_affiliation_df.to_csv('../clean_data/bridge_athlete_affiliation.csv', index=False)
+#         logger.info("Saved bios data")
+
+#         results_df.to_csv('../clean_data/cleaned_results.csv', index=False)
+#         logger.info("Saved results data")
+
+#         editions_df.to_csv('../clean_data/cleaned_editions.csv', index=False)
+#         logger.info("Saved editions data")
+
+#     except Exception as e:
+#         logger.exception(f"Error during cleaning pipeline: {e}")
 
         
+
+def data_clean_I():
+    """
+    Reads raw CSVs from MinIO bronze bucket,
+    cleans them, and writes Parquet files to silver bucket.
+    """
+    # Configuration
+    s3_endpoint = "http://minio:9000"  # use "http://host.docker.internal:9000" if Airflow is outside Docker
+    access_key = "accesskey"
+    secret_key = "secretkey"
+    bronze_bucket = "bronze"
+    silver_bucket = "silver"
+
+    # Create s3fs-compatible path
+    s3fs_opts = {
+        "key": access_key,
+        "secret": secret_key,
+        "client_kwargs": {"endpoint_url": s3_endpoint},
+    }
+
+    # Read data from bronze
+    logger.info("Reading raw data from bronze bucket...")
+    bios_df = pd.read_csv(f"s3://{bronze_bucket}/raw_data/biodata.csv", storage_options=s3fs_opts)
+    countries_df = pd.read_csv(f"s3://{bronze_bucket}/data/wikipedia-iso-country-codes.csv", storage_options=s3fs_opts)
+    results_df = pd.read_csv(f"s3://{bronze_bucket}/raw_data/results.csv", storage_options=s3fs_opts)
+    editions_df = pd.read_csv(f"s3://{bronze_bucket}/raw_data/editions.csv", storage_options=s3fs_opts)
+
+    logger.info("Cleaning biodata...")
+    bios_df, dim_affiliation_df, bridge_athlete_affiliation_df = clean_biodata(bios_df, countries_df)
+    results_df = clean_results(results_df)
+    editions_df = clean_editions(editions_df)
+
+    logger.info("Saving cleaned data to silver bucket as Parquet...")
+    bios_df.to_parquet(f"s3://{silver_bucket}/clean_data/cleaned_biodata.parquet", index=False, storage_options=s3fs_opts)
+    dim_affiliation_df.to_parquet(f"s3://{silver_bucket}/clean_data/dim_affiliation.parquet", index=False, storage_options=s3fs_opts)
+    bridge_athlete_affiliation_df.to_parquet(f"s3://{silver_bucket}/clean_data/bridge_athlete_affiliation.parquet", index=False, storage_options=s3fs_opts)
+    results_df.to_parquet(f"s3://{silver_bucket}/clean_data/cleaned_results.parquet", index=False, storage_options=s3fs_opts)
+    editions_df.to_parquet(f"s3://{silver_bucket}/clean_data/cleaned_editions.parquet", index=False, storage_options=s3fs_opts)
+
+    logger.info("Data cleaning I complete")
