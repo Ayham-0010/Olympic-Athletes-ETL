@@ -421,10 +421,11 @@ def data_clean_I():
 
     # Read data from bronze
     logger.info("Reading raw data from bronze bucket...")
-    bios_df = pd.read_csv(f"s3://{bronze_bucket}/raw_data/biodata.csv", storage_options=s3fs_opts)
+    bios_df = pd.read_parquet(f"s3://{bronze_bucket}/raw_data/biodata.parquet", storage_options=s3fs_opts)
+    results_df = pd.read_parquet(f"s3://{bronze_bucket}/raw_data/results.parquet", storage_options=s3fs_opts)
+    editions_df = pd.read_parquet(f"s3://{bronze_bucket}/raw_data/editions.parquet", storage_options=s3fs_opts)
+
     countries_df = pd.read_csv(f"s3://{bronze_bucket}/data/wikipedia-iso-country-codes.csv", storage_options=s3fs_opts)
-    results_df = pd.read_csv(f"s3://{bronze_bucket}/raw_data/results.csv", storage_options=s3fs_opts)
-    editions_df = pd.read_csv(f"s3://{bronze_bucket}/raw_data/editions.csv", storage_options=s3fs_opts)
 
     logger.info("Cleaning biodata...")
     bios_df, dim_affiliation_df, bridge_athlete_affiliation_df = clean_biodata(bios_df, countries_df)
