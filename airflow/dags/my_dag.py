@@ -23,7 +23,7 @@ default_args = {
 
 with DAG (
 
-    dag_id='Olympic_Athletes_ETL_V1',
+    dag_id='Olympic_Athletes_ETL',
     description='practice',
     default_args=default_args,
     start_date=datetime(2025,11,8),
@@ -34,19 +34,19 @@ with DAG (
 )as dag:
     
 
-    # scrap_athletes_task=PythonOperator(
+    scrap_athletes_task=PythonOperator(
 
-    # task_id = "scrap_athletes",
-    # python_callable=scrap_athletes
+    task_id = "scrap_athletes",
+    python_callable=scrap_athletes
 
-    # )
+    )
 
-    # scrap_editions_task=PythonOperator(
+    scrap_editions_task=PythonOperator(
 
-    # task_id = "scrap_editions",
-    # python_callable=scrap_editions
+    task_id = "scrap_editions",
+    python_callable=scrap_editions
 
-    # )
+    )
 
     data_clean_I_task=PythonOperator(
 
@@ -76,10 +76,9 @@ with DAG (
     )
 
 
-# scrap_athletes_task \
-# >> scrap_editions_task \
-# >> 
-data_clean_I_task \
+scrap_athletes_task \
+>> scrap_editions_task \
+>> data_clean_I_task \
 >> data_clean_II_task \
 >> data_validation_quality_checks_task \
 >> column_rename_reorder_task
