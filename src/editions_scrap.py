@@ -5,8 +5,8 @@ from io import StringIO
 import re
 import time, random
 
-from logger import logger
-
+from .logger import logger
+from .athlete_scrape import normalizing_to_string
 
 retry_num=3
 
@@ -67,7 +67,22 @@ def game_table_df(session):
 
 
 
-if __name__ == "__main__":
+# if __name__ == "__main__":
+def scrap_editions():
+
+    # Configuration
+    s3_endpoint = "http://minio:9000"  # or host/IP if outside Docker
+    access_key = "accesskey"
+    secret_key = "secretkey"
+    bronze_bucket = "bronze"
+
+    # s3fs-compatible storage options
+    s3fs_opts = {
+        "key": access_key,
+        "secret": secret_key,
+        "client_kwargs": {"endpoint_url": s3_endpoint},
+    }
+
 
     with requests.Session() as session:
         session.headers.update({
@@ -75,5 +90,8 @@ if __name__ == "__main__":
         })
         df= game_table_df(session)
 
-        df.to_csv("./raw_data/editions.csv", index=False)
+        # df.to_csv("./raw_data/editions.csv", index=False)
+        df = normalizing_to_string(df)
+        df.to_parquet(f"s3://{bronze_bucket}/raw_data/editions.parquet", index=False, storage_options=s3fs_opts)
+       
         logger.info(f"Saved {len(df)} olympic editions rows with NOC codes extracted.")

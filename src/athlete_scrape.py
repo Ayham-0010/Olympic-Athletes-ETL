@@ -3,33 +3,61 @@ import requests
 from bs4 import BeautifulSoup
 from io import StringIO
 import time, random, glob, os
+import s3fs
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from logger import logger
+from .logger import logger
 
 
 #  Configuration 
 
 size = 150000
 retry_num = 3
-max_threads = 15
+max_threads = 10
 checkpoint_every = 1000
 
-os.makedirs("./checkpoints", exist_ok=True)
-os.makedirs("./raw_data", exist_ok=True)
+# os.makedirs("./checkpoints", exist_ok=True)
+# os.makedirs("./raw_data", exist_ok=True)
+s3_endpoint = "http://minio:9000"  # or host/IP if outside Docker
+access_key = "accesskey"
+secret_key = "secretkey"
+bronze_bucket = "bronze"
 
-def get_latest_checkpoint(folder="./checkpoints"):
+s3fs_opts = {
+    "key": access_key,
+    "secret": secret_key,
+    "client_kwargs": {"endpoint_url": s3_endpoint},
+}
 
-    if not os.path.exists(folder):
-        os.makedirs(folder)
+def normalizing_to_string(df):
+    # Before saving to parquet
+    df = df.copy()
+    for col in df.columns:
+        # Force all object columns to string to ensure compatibility
+        if df[col].dtype == 'object':
+            df[col] = df[col].astype(str)
+    return df
+
+
+def get_latest_checkpoint():
+
+
+    fs = s3fs.S3FileSystem(**s3fs_opts)
+    folder = f"{bronze_bucket}/checkpoints"
+
+    # If folder doesn't exist, create it and return None
+    if not fs.exists(folder):
+        fs.mkdirs(folder, exist_ok=True)
         return None, None
 
     def find_latest(prefix):
-        files = glob.glob(os.path.join(folder, f"{prefix}*.csv"))
+        files = fs.glob(f"{folder}/{prefix}*.parquet")
         numbers = []
         for f in files:
             try:
-                num = int(os.path.splitext(os.path.basename(f))[0].split("_")[-1])
+                # Get the filename (strip folder path)
+                filename = os.path.basename(f)
+                num = int(os.path.splitext(filename)[0].split("_")[-1])
                 numbers.append(num)
             except ValueError:
                 continue
@@ -110,7 +138,21 @@ def scrape_athlete(i, session):
 
 
 
-if __name__ == "__main__":
+# if __name__ == "__main__":
+def scrap_athletes():
+    # Configuration
+    # s3_endpoint = "http://minio:9000"  # or host/IP if outside Docker
+    # access_key = "accesskey"
+    # secret_key = "secretkey"
+    # bronze_bucket = "bronze"
+
+    # # s3fs-compatible storage options
+    # s3fs_opts = {
+    #     "key": access_key,
+    #     "secret": secret_key,
+    #     "client_kwargs": {"endpoint_url": s3_endpoint},
+    # }
+
 
 
     #  Resume logic 
@@ -119,8 +161,12 @@ if __name__ == "__main__":
     latest = min(bio_ckpt or 0, res_ckpt or 0)
 
     if latest:
-        biodata_checkpoint = pd.read_csv(f"./checkpoints/biodata_temp_{latest}.csv")
-        results_checkpoint = pd.read_csv(f"./checkpoints/results_temp_{latest}.csv")
+        # biodata_checkpoint = pd.read_csv(f"./checkpoints/biodata_temp_{latest}.csv")
+        # results_checkpoint = pd.read_csv(f"./checkpoints/results_temp_{latest}.csv")
+        biodata_checkpoint = pd.read_parquet(f"s3://{bronze_bucket}/checkpoints/biodata_temp_{latest}.parquet", storage_options=s3fs_opts)
+        results_checkpoint = pd.read_parquet(f"s3://{bronze_bucket}/checkpoints/results_temp_{latest}.parquet", storage_options=s3fs_opts)
+    
+        
         scraped_ids = set(biodata_checkpoint["Athlete_Id"].tolist())
         bio_list = [biodata_checkpoint]
         result_list = [results_checkpoint]
@@ -166,9 +212,13 @@ if __name__ == "__main__":
                     if completed % checkpoint_every == 0:
                         bio_concate_df = pd.concat(bio_list, ignore_index=True)
                         result_concate_df = pd.concat(result_list, ignore_index=True)
-                        bio_concate_df.to_csv(f"./checkpoints/biodata_temp_{completed}.csv", index=False)
-                        result_concate_df.to_csv(f"./checkpoints/results_temp_{completed}.csv", index=False)
-                        
+                        # bio_concate_df.to_csv(f"./checkpoints/biodata_temp_{completed}.csv", index=False)
+                        # result_concate_df.to_csv(f"./checkpoints/results_temp_{completed}.csv", index=False)
+                        bio_concate_df= normalizing_to_string(bio_concate_df)
+                        result_concate_df= normalizing_to_string(result_concate_df)
+                        bio_concate_df.to_parquet(f"s3://{bronze_bucket}/checkpoints/biodata_temp_{completed}.parquet", index=False, storage_options=s3fs_opts)
+                        result_concate_df.to_parquet(f"s3://{bronze_bucket}/checkpoints/results_temp_{completed}.parquet", index=False, storage_options=s3fs_opts)
+
 
                         logger.info(f"Checkpoint saved at {completed} athletes")
                 
@@ -182,9 +232,12 @@ if __name__ == "__main__":
     #  Final save 
     bio_concate_df = pd.concat(bio_list, ignore_index=True)
     result_concate_df = pd.concat(result_list, ignore_index=True)
-
-    bio_concate_df.to_csv("./raw_data/biodata.csv", index=False)
-    result_concate_df.to_csv("./raw_data/results.csv", index=False)
+    bio_concate_df = normalizing_to_string(bio_concate_df)
+    result_concate_df = normalizing_to_string(result_concate_df)
+    # bio_concate_df.to_csv("./raw_data/biodata.csv", index=False)
+    # result_concate_df.to_csv("./raw_data/results.csv", index=False)
+    bio_concate_df.to_parquet(f"s3://{bronze_bucket}/raw_data/biodata.parquet", index=False, storage_options=s3fs_opts)
+    result_concate_df.to_parquet(f"s3://{bronze_bucket}/raw_data/results.parquet", index=False, storage_options=s3fs_opts)
 
     logger.info("Saving final data files.")
 

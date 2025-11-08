@@ -1,5 +1,5 @@
 import pandas as pd
-from logger import logger
+from .logger import logger
 
 def rename_and_reorder_df_columns(df: pd.DataFrame, names_dict: dict) -> pd.DataFrame:
 
@@ -79,30 +79,78 @@ Events_fct_table_columns_names = {
 }
 
 
-if __name__ == "__main__":
+# # if __name__ == "__main__":
+# def column_rename_reorder():
+#     logger.info("Loading data...")
 
-    logger.info("Loading data...")
+#     # Load your data
+#     bios_df = pd.read_csv("./clean_data_II/cleaned_biodata.csv")
+#     results_df = pd.read_csv('./clean_data/cleaned_results.csv')
+#     editions_df = pd.read_csv('./clean_data_II/cleaned_editions.csv')
+#     affiliation_df = pd.read_csv("./clean_data/dim_affiliation.csv")
+#     bridge_athlete_affiliation_df = pd.read_csv("./clean_data/bridge_athlete_affiliation.csv")
 
-    # Load your data
-    bios_df = pd.read_csv("./clean_data_II/cleaned_biodata.csv")
-    results_df = pd.read_csv('./clean_data/cleaned_results.csv')
-    editions_df = pd.read_csv('./clean_data_II/cleaned_editions.csv')
-    affiliation_df = pd.read_csv("./clean_data/dim_affiliation.csv")
-    bridge_athlete_affiliation_df = pd.read_csv("./clean_data/bridge_athlete_affiliation.csv")
+#     dim_athletes_df = rename_and_reorder_df_columns(bios_df, athlete_dim_table_columns_names)
+#     dim_affiliations_df = rename_and_reorder_df_columns(affiliation_df, affiliation_dim_table_columns_names)
+#     bridge_athletes_affiliations_df = rename_and_reorder_df_columns(bridge_athlete_affiliation_df, athlete_affiliation_bridge_table_columns_names)
+#     dim_games_df = rename_and_reorder_df_columns(editions_df, games_dim_table_columns_names)
+#     fct_results_df = rename_and_reorder_df_columns(results_df, Events_fct_table_columns_names)
 
+#     logger.info("Renamed and ordered all dataframes according to DW conventions")
+
+
+#     dim_athletes_df.to_csv('./data_clean_final/dim_athletes.csv', index=False)
+#     dim_affiliations_df.to_csv('./data_clean_final/dim_affiliations.csv', index=False)
+#     bridge_athletes_affiliations_df.to_csv('./data_clean_final/bridge_athletes_affiliations.csv', index=False)
+#     dim_games_df.to_csv('./data_clean_final/dim_games.csv', index=False)
+#     fct_results_df.to_csv('./data_clean_final/fct_results.csv', index=False)
+#     logger.info("final cleaned data saved.")
+
+
+def column_rename_reorder():
+    """
+    Reads imputed and other cleaned CSVs from silver bucket,
+    renames/reorders columns, and saves final cleaned CSVs
+    back to silver bucket.
+    """
+    # Configuration
+    s3_endpoint = "http://minio:9000"  # or host/IP if outside Docker
+    access_key = "accesskey"
+    secret_key = "secretkey"
+    silver_bucket = "silver"
+
+    # s3fs-compatible storage options
+    s3fs_opts = {
+        "key": access_key,
+        "secret": secret_key,
+        "client_kwargs": {"endpoint_url": s3_endpoint},
+    }
+
+    logger.info("Loading data from silver bucket...")
+
+    # Load CSVs from silver bucket
+    bios_df = pd.read_parquet(f"s3://{silver_bucket}/clean_data_II/cleaned_biodata.parquet", storage_options=s3fs_opts)
+    results_df = pd.read_parquet(f"s3://{silver_bucket}/clean_data/cleaned_results.parquet", storage_options=s3fs_opts)
+    editions_df = pd.read_parquet(f"s3://{silver_bucket}/clean_data_II/cleaned_editions.parquet", storage_options=s3fs_opts)
+    affiliation_df = pd.read_parquet(f"s3://{silver_bucket}/clean_data/dim_affiliation.parquet", storage_options=s3fs_opts)
+    bridge_athlete_affiliation_df = pd.read_parquet(f"s3://{silver_bucket}/clean_data/bridge_athlete_affiliation.parquet", storage_options=s3fs_opts)
+
+    # Rename and reorder columns
     dim_athletes_df = rename_and_reorder_df_columns(bios_df, athlete_dim_table_columns_names)
     dim_affiliations_df = rename_and_reorder_df_columns(affiliation_df, affiliation_dim_table_columns_names)
-    bridge_athletes_affiliations_df = rename_and_reorder_df_columns(bridge_athlete_affiliation_df, athlete_affiliation_bridge_table_columns_names)
+    bridge_athletes_affiliations_df = rename_and_reorder_df_columns(
+        bridge_athlete_affiliation_df, athlete_affiliation_bridge_table_columns_names
+    )
     dim_games_df = rename_and_reorder_df_columns(editions_df, games_dim_table_columns_names)
     fct_results_df = rename_and_reorder_df_columns(results_df, Events_fct_table_columns_names)
 
     logger.info("Renamed and ordered all dataframes according to DW conventions")
 
+    # Save final cleaned CSVs back to silver bucket
+    dim_athletes_df.to_parquet(f"s3://{silver_bucket}/data_clean_final/dim_athletes.parquet", index=False, storage_options=s3fs_opts)
+    dim_affiliations_df.to_parquet(f"s3://{silver_bucket}/data_clean_final/dim_affiliations.parquet", index=False, storage_options=s3fs_opts)
+    bridge_athletes_affiliations_df.to_parquet(f"s3://{silver_bucket}/data_clean_final/bridge_athletes_affiliations.parquet", index=False, storage_options=s3fs_opts)
+    dim_games_df.to_parquet(f"s3://{silver_bucket}/data_clean_final/dim_games.parquet", index=False, storage_options=s3fs_opts)
+    fct_results_df.to_parquet(f"s3://{silver_bucket}/data_clean_final/fct_results.parquet", index=False, storage_options=s3fs_opts)
 
-    dim_athletes_df.to_csv('./data_clean_final/dim_athletes.csv', index=False)
-    dim_affiliations_df.to_csv('./data_clean_final/dim_affiliations.csv', index=False)
-    bridge_athletes_affiliations_df.to_csv('./data_clean_final/bridge_athletes_affiliations.csv', index=False)
-    dim_games_df.to_csv('./data_clean_final/dim_games.csv', index=False)
-    fct_results_df.to_csv('./data_clean_final/fct_results.csv', index=False)
-    logger.info("final cleaned data saved.")
-
+    logger.info("Final cleaned data saved to silver bucket")

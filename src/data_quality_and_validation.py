@@ -1,7 +1,8 @@
 import pandas as pd
 import pandera.pandas as pa
+import numpy as np
 
-from logger import logger
+from .logger import logger
 
 
 def df_nan_percentage(df):
@@ -221,13 +222,76 @@ editions_schema = pa.DataFrameSchema(
 )
 
 
+# def get_error_df(df, original_df):
+#     # Example df
+#     # df has columns ['failure_case', 'column', 'check']
 
+#     # Step 1: Find max duplication count
+#     max_count = df['column'].value_counts().max()
+
+#     # Step 2: Keep only columns with max_count occurrences
+#     valid_columns = df['column'].value_counts()[df['column'].value_counts() == max_count].index
+#     filtered = df[df['column'].isin(valid_columns)]
+
+#     # Step 3: Get all unique checks
+#     all_checks = filtered['check'].unique()
+
+#     # Step 4: Transform each check separately and store results
+#     dfs = []
+
+#     for chk in all_checks:
+#         chk_filtered = filtered[filtered['check'] == chk]
+        
+#         # Group by column, collect failure_case
+#         grouped = chk_filtered.groupby('column')['failure_case'].apply(list)
+        
+#         # Create wide DataFrame
+#         temp_df = pd.DataFrame({col: vals for col, vals in grouped.items()})
+        
+#         # Add failed_check column
+#         temp_df['failed_check'] = chk
+        
+#         # Append to list
+#         dfs.append(temp_df)
+
+#     # Step 5: Concatenate all check-specific DataFrames
+#     wide_df = pd.concat(dfs, ignore_index=True)
+
+#     # Step 1: Identify missing columns
+#     # Exclude 'failed_check' if it already exists in wide_df
+#     missing_cols = [c for c in original_df.columns if c not in wide_df.columns and c != 'failed_check']
+
+#     # Step 2: Merge missing columns back
+#     # We'll use the columns that exist in wide_df (except 'failed_check') as keys
+#     merge_cols = [c for c in wide_df.columns if c != 'failed_check']
+
+#     # Step 3: Merge wide_df with original_df to get missing columns
+#     # Using left join to keep all rows in wide_df
+#     final_df = pd.merge(
+#         wide_df,
+#         original_df[merge_cols + missing_cols].drop_duplicates(),
+#         on=merge_cols,
+#         how='left'
+#     )
+
+#     # Step 4: Optional: check the result
+
+#     return final_df.drop_duplicates()
 
 def get_error_df(df, original_df):
-    # Example df
-    # df has columns ['failure_case', 'column', 'check']
+    """
+    Transform an error DataFrame to a wide format and merge missing columns
+    from the original DataFrame safely.
 
-    # Step 1: Find max duplication count
+    Args:
+        df (pd.DataFrame): Error DataFrame with columns ['failure_case', 'column', 'check']
+        original_df (pd.DataFrame): Original full DataFrame
+
+    Returns:
+        pd.DataFrame: Clean wide-format error DataFrame with all original columns
+    """
+
+    # Step 1: Find max duplication count for columns
     max_count = df['column'].value_counts().max()
 
     # Step 2: Keep only columns with max_count occurrences
@@ -237,61 +301,151 @@ def get_error_df(df, original_df):
     # Step 3: Get all unique checks
     all_checks = filtered['check'].unique()
 
-    # Step 4: Transform each check separately and store results
+    # Step 4: Transform each check separately
     dfs = []
 
     for chk in all_checks:
         chk_filtered = filtered[filtered['check'] == chk]
-        
-        # Group by column, collect failure_case
+
+        # Group by column, collect failure_case as list
         grouped = chk_filtered.groupby('column')['failure_case'].apply(list)
-        
-        # Create wide DataFrame
-        temp_df = pd.DataFrame({col: vals for col, vals in grouped.items()})
-        
+
+        # Convert lists to strings to avoid unhashable issues
+        temp_df = pd.DataFrame({col: ['; '.join(map(str, vals))] for col, vals in grouped.items()})
+
         # Add failed_check column
         temp_df['failed_check'] = chk
-        
-        # Append to list
+
         dfs.append(temp_df)
 
     # Step 5: Concatenate all check-specific DataFrames
     wide_df = pd.concat(dfs, ignore_index=True)
 
-    # Step 1: Identify missing columns
-    # Exclude 'failed_check' if it already exists in wide_df
+    # Step 6: Identify missing columns from original_df
     missing_cols = [c for c in original_df.columns if c not in wide_df.columns and c != 'failed_check']
 
-    # Step 2: Merge missing columns back
-    # We'll use the columns that exist in wide_df (except 'failed_check') as keys
-    merge_cols = [c for c in wide_df.columns if c != 'failed_check']
+    # Step 7: Prepare original_df subset for merging
+    original_df_fixed = original_df[wide_df.columns.drop('failed_check').tolist() + missing_cols].copy()
 
-    # Step 3: Merge wide_df with original_df to get missing columns
-    # Using left join to keep all rows in wide_df
+    # Step 7a: Convert any list/array cells to strings
+    for col in original_df_fixed.columns:
+        original_df_fixed[col] = original_df_fixed[col].apply(
+            lambda x: '; '.join(map(str, x)) if isinstance(x, (list, np.ndarray)) else x
+        )
+
+    # Step 7b: Ensure merge columns have same type as wide_df
+    merge_cols = [c for c in wide_df.columns if c != 'failed_check']
+    for col in merge_cols:
+        original_df_fixed[col] = original_df_fixed[col].astype(str)
+
+    # Step 8: Merge wide_df with original_df_fixed
     final_df = pd.merge(
         wide_df,
-        original_df[merge_cols + missing_cols].drop_duplicates(),
+        original_df_fixed.drop_duplicates(),
         on=merge_cols,
         how='left'
     )
 
-    # Step 4: Optional: check the result
-
+    # Step 9: Remove duplicates and return
     return final_df.drop_duplicates()
 
 
 
-if __name__ == "__main__":
+# # if __name__ == "__main__":
+# def data_validation_quality_checks():
 
-    logger.info("Loading data...")
 
-    # Load your data
-    bios_df = pd.read_csv("./clean_data_II/cleaned_biodata.csv")
-    results_df = pd.read_csv('./clean_data/cleaned_results.csv')
-    editions_df = pd.read_csv('./clean_data_II/cleaned_editions.csv')
-    affiliation_df = pd.read_csv("./clean_data/dim_affiliation.csv")
+#     logger.info("Loading data...")
 
-    # Validate bios_df
+#     # Load your data
+#     bios_df = pd.read_csv("./clean_data_II/cleaned_biodata.csv")
+#     results_df = pd.read_csv('./clean_data/cleaned_results.csv')
+#     editions_df = pd.read_csv('./clean_data_II/cleaned_editions.csv')
+#     affiliation_df = pd.read_csv("./clean_data/dim_affiliation.csv")
+
+#     # Validate bios_df
+#     try: 
+#         bios_schema.validate(bios_df, lazy=True) 
+#         logger.info("Bios validation PASSED!")
+#     except pa.errors.SchemaErrors as exc: 
+#         logger.error("Bios validation FAILED!")
+#         bios_error_df = exc.failure_cases
+
+#     # Validate affiliation_df
+#     try: 
+#         affiliations_schema.validate(affiliation_df, lazy=True) 
+#         logger.info("Affiliations validation PASSED!") 
+#     except pa.errors.SchemaErrors as exc: 
+#         logger.error("Affiliations validation FAILED!")
+#         affiliations_error_df = exc.failure_cases
+
+#     # Validate editions_df
+#     try:
+#         editions_schema.validate(editions_df, lazy=True)
+#         logger.info("Editions validation PASSED!")
+#     except pa.errors.SchemaErrors as exc:
+#         logger.error("Editions validation FAILED!")
+#         editions_error_df = exc.failure_cases
+
+#     # Validate results_df
+#     try:
+#         results_schema.validate(results_df, lazy=True)
+#         logger.info("Results validation PASSED!")
+#     except pa.errors.SchemaErrors as exc:
+#         logger.error("Results validation FAILED!")
+#         results_error_df = exc.failure_cases
+
+#     # Process and log error dataframes
+#     bios_error_df = bios_error_df[["failure_case", "column", 'check']].sort_index()
+#     bios_failure_cases_df = get_error_df(bios_error_df, bios_df)
+#     logger.info("Bios failure cases dataframe created.")
+
+#     affiliations_error_df = affiliations_error_df[["failure_case", "column", 'check']].sort_index()
+#     affiliations_failure_cases_df = get_error_df(affiliations_error_df, affiliation_df)
+#     logger.info("Affiliations failure cases dataframe created.")
+
+#     editions_error_df = editions_error_df[["failure_case", "column", 'check']].sort_index()
+#     editions_failure_cases_df = get_error_df(editions_error_df, editions_df)
+#     logger.info("Editions failure cases dataframe created.")
+
+#     results_error_df = results_error_df[["failure_case", "column", 'check']].sort_index()
+#     results_failure_cases_df = get_error_df(results_error_df, results_df)
+#     logger.info("Results failure cases dataframe created.")
+
+
+#     bios_failure_cases_df.to_csv('./failure_cases/bios_failure_cases.csv', index=False)
+#     affiliations_failure_cases_df.to_csv('./failure_cases/affiliations_failure_cases.csv', index=False)
+#     editions_failure_cases_df.to_csv('./failure_cases/editions_failure_cases.csv', index=False)
+#     results_failure_cases_df.to_csv('./failure_cases/results_failure_cases.csv', index=False)
+#     logger.info("failure cases data saved.")
+
+
+def data_validation_quality_checks():
+    """
+    Loads cleaned data from silver bucket,
+    performs validation (omitted here),
+    and saves failure cases back to silver bucket.
+    """
+    # Configuration
+    s3_endpoint = "http://minio:9000"  # or host/IP if outside Docker
+    access_key = "accesskey"
+    secret_key = "secretkey"
+    silver_bucket = "silver"
+
+    s3fs_opts = {
+        "key": access_key,
+        "secret": secret_key,
+        "client_kwargs": {"endpoint_url": s3_endpoint},
+    }
+
+    logger.info("Loading data from silver bucket...")
+
+    bios_df = pd.read_parquet(f"s3://{silver_bucket}/clean_data_II/cleaned_biodata.parquet", storage_options=s3fs_opts)
+    results_df = pd.read_parquet(f"s3://{silver_bucket}/clean_data/cleaned_results.parquet", storage_options=s3fs_opts)
+    editions_df = pd.read_parquet(f"s3://{silver_bucket}/clean_data_II/cleaned_editions.parquet", storage_options=s3fs_opts)
+    affiliation_df = pd.read_parquet(f"s3://{silver_bucket}/clean_data/dim_affiliation.parquet", storage_options=s3fs_opts)
+
+   # Validate bios_df
     try: 
         bios_schema.validate(bios_df, lazy=True) 
         logger.info("Bios validation PASSED!")
@@ -341,8 +495,11 @@ if __name__ == "__main__":
     logger.info("Results failure cases dataframe created.")
 
 
-    bios_failure_cases_df.to_csv('./failure_cases/bios_failure_cases.csv', index=False)
-    affiliations_failure_cases_df.to_csv('./failure_cases/affiliations_failure_cases.csv', index=False)
-    editions_failure_cases_df.to_csv('./failure_cases/editions_failure_cases.csv', index=False)
-    results_failure_cases_df.to_csv('./failure_cases/results_failure_cases.csv', index=False)
-    logger.info("failure cases data saved.")
+    logger.info("Saving failure cases to silver bucket...")
+
+    bios_failure_cases_df.to_parquet(f"s3://{silver_bucket}/failure_cases/bios_failure_cases.parquet", index=False, storage_options=s3fs_opts)
+    affiliations_failure_cases_df.to_parquet(f"s3://{silver_bucket}/failure_cases/affiliations_failure_cases.parquet", index=False, storage_options=s3fs_opts)
+    editions_failure_cases_df.to_parquet(f"s3://{silver_bucket}/failure_cases/editions_failure_cases.parquet", index=False, storage_options=s3fs_opts)
+    results_failure_cases_df.to_parquet(f"s3://{silver_bucket}/failure_cases/results_failure_cases.parquet", index=False, storage_options=s3fs_opts)
+
+    logger.info("Failure cases saved to silver bucket")
