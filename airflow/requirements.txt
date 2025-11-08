@@ -1,6 +1,7 @@
 apache-airflow-providers-postgres==5.6.0
 apache-airflow-providers-amazon==9.6.0
 pandas
+numpy
 requests
 beautifulsoup4
 lxml
