@@ -26,8 +26,8 @@ with DAG (
     dag_id='Olympic_Athletes_ETL',
     description='practice',
     default_args=default_args,
-    start_date=datetime(2025,11,8),
-    schedule_interval='@daily'
+    start_date=datetime(2025,11,9),
+    schedule_interval='@weekly'
 
 
 
@@ -82,5 +82,6 @@ scrap_athletes_task \
 >> data_clean_II_task \
 >> data_validation_quality_checks_task \
 >> column_rename_reorder_task
+
 
 

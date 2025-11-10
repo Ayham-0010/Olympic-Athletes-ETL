@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import requests
 from bs4 import BeautifulSoup
 from io import StringIO
@@ -29,15 +30,23 @@ s3fs_opts = {
     "client_kwargs": {"endpoint_url": s3_endpoint},
 }
 
+# def normalizing_to_string(df):
+#     # Before saving to parquet
+#     df = df.copy()
+#     for col in df.columns:
+#         # Force all object columns to string to ensure compatibility
+#         if df[col].dtype == 'object':
+#             df[col] = df[col].astype(str)
+#     return df
 def normalizing_to_string(df):
-    # Before saving to parquet
     df = df.copy()
     for col in df.columns:
-        # Force all object columns to string to ensure compatibility
         if df[col].dtype == 'object':
-            df[col] = df[col].astype(str)
+            # Convert any NaN/None/etc. explicitly to pd.NA first
+            df[col] = df[col].replace({np.nan: pd.NA, None: pd.NA})
+            # Then cast to pandas string dtype
+            df[col] = df[col].astype("string")
     return df
-
 
 def get_latest_checkpoint():
 

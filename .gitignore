@@ -7,6 +7,7 @@ To-Do.txt
 experimental.ipynb
 
 checkpoints/
+test_data/
 data/
 raw_data/
 clean_data/

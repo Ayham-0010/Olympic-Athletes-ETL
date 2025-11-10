@@ -63,67 +63,94 @@ def impute_height_weight_by_discipline(bio_df, results_df):
     return bio
 
 
-# def impute_Born_Country_by_NOC(bios_df,iso_df):
-#     # clean_bio_df = pd.read_csv('your_bio_df.csv')  # assuming it's already loaded
-#     bios_df = bios_df.copy()
-#     # Load the ISO country codes CSV
-#     iso_df = iso_df.copy()
-#     # Create a mapping from lowercase English short name to Alpha-3 code
-#     country_to_code = dict(zip(iso_df['English short name lower case'].str.lower(), iso_df['Alpha-3 code']))
-    
-#     # Function to get the first NOC country code
-#     def get_noc_code(noc_list):
-#         noc_list = ast.literal_eval(noc_list)
-#         if len(noc_list) > 0:
-#             return country_to_code.get(noc_list[0])
-#         return np.nan
 
 def impute_Born_Country_by_NOC(bios_df, iso_df):
     """
-    Impute Born_Country values based on NOC (National Olympic Committee) codes.
-    Handles NOC values that may be strings, lists, arrays, or NaN.
+    Imputes the 'Born_Country' column in bios_df using the first NOC code from
+    the 'NOC' column (comma-separated string) and a mapping from iso_df.
+    
+    Parameters:
+        bios_df: DataFrame containing 'NOC' column as comma-separated strings
+        iso_df: DataFrame containing ISO country codes with columns:
+                'English short name lower case' and 'Alpha-3 code'
+                
+    Returns:
+        bios_df with imputed 'Born_Country' where missing
     """
-
+    import numpy as np
+    
     bios_df = bios_df.copy()
     iso_df = iso_df.copy()
 
-    # Create mapping from lowercase English short name to Alpha-3 code
-    country_to_code = dict(
-        zip(
-            iso_df["English short name lower case"].str.lower(),
-            iso_df["Alpha-3 code"]
-        )
+    # Create a mapping from lowercase English short name to Alpha-3 code
+    country_to_code = dict(zip(
+        iso_df['English short name lower case'].str.lower(),
+        iso_df['Alpha-3 code']
+    ))
+
+    # Function to get the first NOC country code
+    def get_noc_code(noc_str):
+        if pd.isna(noc_str) or noc_str.strip() == '':
+            return np.nan
+        # Take the first country (comma-separated)
+        first_country = noc_str.split(',')[0].strip()
+        # Map to Alpha-3 code
+        return country_to_code.get(first_country.lower(), np.nan)
+
+    # Impute Born_Country where missing
+    bios_df['Born_Country_From_NOC'] = bios_df['Born_Country'].isna()
+    bios_df['Born_Country'] = bios_df.apply(
+        lambda row: get_noc_code(row['NOC']) if pd.isna(row['Born_Country']) else row['Born_Country'],
+        axis=1
     )
 
-    # --- Robust helper function ---
-    def get_noc_code(noc_list):
-        # Handle None or NaN
-        if noc_list is None or (isinstance(noc_list, float) and np.isnan(noc_list)):
-            return np.nan
+    return bios_df
+# def impute_Born_Country_by_NOC(bios_df, iso_df):
+#     """
+#     Impute Born_Country values based on NOC (National Olympic Committee) codes.
+#     Handles NOC values that may be strings, lists, arrays, or NaN.
+#     """
 
-        # If it's already a list or numpy array
-        if isinstance(noc_list, (list, np.ndarray)):
-            items = list(noc_list)
-        elif isinstance(noc_list, str):
-            # Try parsing a string that may look like a list
-            try:
-                parsed = ast.literal_eval(noc_list)
-                if isinstance(parsed, (list, np.ndarray)):
-                    items = list(parsed)
-                else:
-                    items = [parsed]
-            except Exception:
-                # Fallback: plain string, treat it as a single item
-                items = [noc_list]
-        else:
-            # Fallback for any unexpected type (e.g., int)
-            items = [noc_list]
+#     bios_df = bios_df.copy()
+#     iso_df = iso_df.copy()
 
-        if len(items) > 0:
-            country = str(items[0]).strip().lower()
-            return country_to_code.get(country, np.nan)
+#     # Create mapping from lowercase English short name to Alpha-3 code
+#     country_to_code = dict(
+#         zip(
+#             iso_df["English short name lower case"].str.lower(),
+#             iso_df["Alpha-3 code"]
+#         )
+#     )
 
-        return np.nan
+#     # --- Robust helper function ---
+#     def get_noc_code(noc_list):
+#         # Handle None or NaN
+#         if noc_list is None or (isinstance(noc_list, float) and np.isnan(noc_list)):
+#             return np.nan
+
+#         # If it's already a list or numpy array
+#         if isinstance(noc_list, (list, np.ndarray)):
+#             items = list(noc_list)
+#         elif isinstance(noc_list, str):
+#             # Try parsing a string that may look like a list
+#             try:
+#                 parsed = ast.literal_eval(noc_list)
+#                 if isinstance(parsed, (list, np.ndarray)):
+#                     items = list(parsed)
+#                 else:
+#                     items = [parsed]
+#             except Exception:
+#                 # Fallback: plain string, treat it as a single item
+#                 items = [noc_list]
+#         else:
+#             # Fallback for any unexpected type (e.g., int)
+#             items = [noc_list]
+
+#         if len(items) > 0:
+#             country = str(items[0]).strip().lower()
+#             return country_to_code.get(country, np.nan)
+
+#         return np.nan
 
     # Create a flag column to indicate when Born_Country is derived from NOC
     bios_df['Born_Country_From_NOC'] = False

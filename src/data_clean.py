@@ -113,25 +113,115 @@ def affiliations_parsing(df):
     return dim_affiliation, bridge_athlete_affiliation
 
 
+# def roles_parsing(df):
+#     to list
+#     df = df.copy()
+
+#     df['Roles'] = df['Roles'].astype(str).str.strip().replace('—', '').str.split(' • ')
+#     return df
+
 def roles_parsing(df):
-
     df = df.copy()
-
-    df['Roles'] = df['Roles'].astype(str).str.strip().replace('—', '').str.split(' • ')
+    df['Roles'] = (
+        df['Roles']
+        .astype(str)
+        .str.strip()
+        .str.replace('—', '')                   # remove em dashes
+        .str.replace(' • ', ',', regex=False)  # replace bullet delimiter with comma
+    )
     return df
 
 
 
-
-
-def noc_parsing(df,countries_df):
+# def noc_parsing(df,countries_df):
         
-    df =df.copy()
+#     df =df.copy()
+  
+#     # Normalize valid country names
+#     valid_countries = countries_df["English short name lower case"].str.lower().str.strip().tolist()
+
+#     # Legacy / historical mappings
+#     legacy_map = {
+#         "west germany": "germany",
+#         "east germany": "germany",
+#         "germany west germany": "germany",
+#         "germany saar": "germany",
+#         "german democratic republic": "germany",
+#         "saar": "germany",
+#         "soviet union": "russian federation",
+#         "ussr": "russian federation",
+#         "unified team": "russian federation",
+#         "czechoslovakia": "czechia",
+#         "bohemia": "czechia",
+#         "yugoslavia": "serbia",
+#         "serbia and montenegro": "serbia",
+#         "rhodesia": "zimbabwe",
+#         "malaya": "malaysia",
+#         "north yemen": "yemen",
+#         "south yemen": "yemen",
+#         "burma": "myanmar",
+#         "peoples republic of china": "china",
+#         "republic of korea": "south korea",
+#         "korea team": "south korea",
+#         "democratic people's republic of korea": "north korea",
+#         "islamic republic of iran": "iran",
+#         "kingdom of saudi arabia": "saudi arabia",
+#         "united arab republic": "egypt",
+#         "republic of moldova": "moldova",
+#         "roc": "russian federation",
+#         "great britain": "united kingdom",
+#         "the bahamas": "bahamas",
+#         "hong kong, china": "hong kong",
+#         "taiwan": "chinese taipei",
+#         "viet nam": "vietnam",
+#     }
+
+#     def extract_valid_nocs(noc_str):
+#         if pd.isna(noc_str):
+#             return []
+
+#         s = noc_str.lower().strip()
+
+#         # replace legacy names first
+#         for old, new in legacy_map.items():
+#             if old in s:
+#                 s = s.replace(old, new)
+
+#         # normalize punctuation and separators
+#         s = re.sub(r"[/,;]", " ", s)
+#         s = re.sub(r"\band\b", " ", s)
+#         s = re.sub(r"\s+", " ", s).strip()
+
+#         found = set()
+
+#         # try matching full country names first (longest names first to avoid partials)
+#         for country in sorted(valid_countries, key=len, reverse=True):
+#             # use boundary-safe regex but require whole phrase match
+#             pattern = rf'(?<!\w){re.escape(country)}(?!\w)'
+#             if re.search(pattern, s):
+#                 found.add(country)
+#                 # optionally, remove the matched country from string to avoid overlap
+#                 s = re.sub(pattern, " ", s)
+
+#         # Keep unmatched NOC as-is
+#         if not found:
+#             return [noc_str.lower().strip()]
+
+#         return sorted(found)
+
+#     df["NOC"] = df["NOC"].apply(extract_valid_nocs)
+
+#     return df
+
+
+
+def noc_parsing(df, countries_df):
+    df = df.copy()
   
     # Normalize valid country names
     valid_countries = countries_df["English short name lower case"].str.lower().str.strip().tolist()
 
-    # Legacy / historical mappings
+    # Legacy / historical mappings (unchanged, but note: "republic of korea" should map to "south korea" if exact match)
     legacy_map = {
         "west germany": "germany",
         "east germany": "germany",
@@ -169,37 +259,42 @@ def noc_parsing(df,countries_df):
 
     def extract_valid_nocs(noc_str):
         if pd.isna(noc_str):
-            return []
+            return ""  # Unchanged: return empty string
 
         s = noc_str.lower().strip()
 
-        # replace legacy names first
+        # --- Unchanged: Replace legacy names ---
         for old, new in legacy_map.items():
             if old in s:
                 s = s.replace(old, new)
 
-        # normalize punctuation and separators
+        # --- Unchanged: Normalize separators (replace / ; , and "and" with space) ---
         s = re.sub(r"[/,;]", " ", s)
         s = re.sub(r"\band\b", " ", s)
         s = re.sub(r"\s+", " ", s).strip()
 
         found = set()
 
-        # try matching full country names first (longest names first to avoid partials)
+        # --- Unchanged: Match full valid country names (longest first) ---
         for country in sorted(valid_countries, key=len, reverse=True):
-            # use boundary-safe regex but require whole phrase match
             pattern = rf'(?<!\w){re.escape(country)}(?!\w)'
             if re.search(pattern, s):
                 found.add(country)
-                # optionally, remove the matched country from string to avoid overlap
-                s = re.sub(pattern, " ", s)
+                s = re.sub(pattern, " ", s)  # remove matched to avoid duplicates
 
-        # Keep unmatched NOC as-is
+        # --- MAJOR CHANGE: For fallback (no matches), return cleaned original WITHOUT replacing spaces with commas ---
+        # This prevents splitting multi-word names like "republic of korea" → "republic,of,korea"
+        # Instead, it stays "republic of korea" (assumes it's a single entity)
         if not found:
-            return [noc_str.lower().strip()]
+            cleaned_original = re.sub(r"\s+", " ", noc_str.lower().strip())
+            return cleaned_original  # MODIFIED: No .replace(" ", ",") to avoid word-splitting
 
-        return sorted(found)
+        # --- Unchanged: Join matched with comma, NO SPACES around comma ---
+        # Multi-word countries keep internal spaces (e.g., "united states,south korea")
+        result = ",".join(sorted(found))  # sorted for consistency
+        return result
 
+    # --- Unchanged: Apply and keep as string ---
     df["NOC"] = df["NOC"].apply(extract_valid_nocs)
 
     return df
@@ -234,19 +329,35 @@ def game_year_type_parsing(df):
 
     return df
 
-def position_parsing(df):
+# def position_parsing(df):
 
-    df = df.copy()
+#     df = df.copy()
     
-    df['Position'] = df['Pos'].str.extract(r'(\d+)')
-    df['Position'] = pd.to_numeric(df['Position'])
+#     df['Position'] = df['Pos'].str.extract(r'(\d+)')
+#     df['Position'] = pd.to_numeric(df['Position'])
 
-    df['Tied'] = df['Pos'].str.contains('=')
+#     df['Tied'] = df['Pos'].str.contains('=')
+
+#     return df
+def position_parsing(df):
+    df = df.copy()
+
+    # Extract numeric position from 'Pos' (e.g., "1", "2=", "3T")
+    df["Position"] = df["Pos"].str.extract(r"(\d+)")
+    df["Position"] = pd.to_numeric(df["Position"], errors="coerce")
+
+    # Detect ties (e.g., "1=", "2T", etc.)
+    df["Tied"] = df["Pos"].astype(str).str.contains("=", na=False)
+
+    # Clean up Tied column to ensure it's boolean, not string/object ---
+    df["Tied"] = (
+        df["Tied"]
+        .replace(["True", "true", "TRUE"], True)
+        .replace(["False", "false", "FALSE"], False)
+        .astype("boolean")  # Nullable boolean dtype (Arrow-friendly)
+    )
 
     return df
-
-
-
 
 def clean_results(df):
     df = game_year_type_parsing(df)
