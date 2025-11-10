@@ -24,14 +24,14 @@ def is_list_of_strings(x):
 no_duplicate_name_birth = pa.Check(
     lambda df: ~df.duplicated(subset=["Name", "Born_Date"]),
     element_wise=False,
-    error="Duplicate athlete records found with same Name and Born_Date."
+    error="duplicate_name_birth_date"
 )
 
 # Logical validation for chronological consistency between Born and Died dates
 date_logic = pa.Check(
     lambda df: (df["Born_Date"].isna() | df["Died_Date"].isna()) | (df["Died_Date"] >= df["Born_Date"]),
     element_wise=False,
-    error="Died_Date earlier than Born_Date."
+    error="died_before_born"
 )
 
 # Biometric sanity check: BMI must fall within realistic human range (15–45)
@@ -39,7 +39,7 @@ height_weight_logic = pa.Check(
     lambda df: (
         (df["Weight (kg)"] / ((df["Height (cm)"] / 100) ** 2)).between(15, 45)
     ),
-    error="Unrealistic height-to-weight ratio."
+    error="height_weight_ratio_invalid"
 )
 
 # Bios Schema Definition
@@ -88,7 +88,7 @@ bios_schema = pa.DataFrameSchema(
 duplicate_affiliation_content_check = pa.Check(
     lambda df: ~df.duplicated(subset=["Affiliation_Club"]),
     element_wise=False,
-    error="Duplicate affiliations found with different Affiliation_Ids (same club, city, and country)."
+    error="duplicate_affiliation_with_different_ids"
 )
 
 # Affiliations Schema Definition
@@ -119,9 +119,8 @@ medal_position_logic_check = pa.Check(
     lambda df: (
         df["Medal"].isna() | df["Position"].isna() | df["Position"] < 3
     ),
-    error="Medal assigned to invalid position (must be ≤ 3)."
+    error="position_invalid_medal_assignment"
 )
-null_strings = ['nan', '<NA>', 'N/A', 'NULL', 'None', '']
 
 # Ensure that medal type corresponds correctly to athlete's position
 position_medal_match_check = pa.Check(
@@ -134,7 +133,7 @@ position_medal_match_check = pa.Check(
             | (df["Position"] > 3) & (df["Medal"].isna())
         )
     ),
-    error="Position–Medal mismatch: check if medal corresponds to rank."
+    error="position_medal_mismatch"
 )
 
 # Results Schema Definition
@@ -180,7 +179,7 @@ edition_names_list=['Summer', 'Winter', 'Equestrian']
 no_duplicate_games_check = pa.Check(
     lambda df: ~df.duplicated(subset=["Year", "Edition_Name", "Game_Type"]),
     element_wise=False,
-    error="Duplicate game editions detected based on Year, Edition_Name, and Game_Type."
+    error="duplicate_game_edition"
 )
 
 # Validate chronological consistency between Opened and Closed dates
@@ -190,7 +189,7 @@ edition_date_check = pa.Check(
         df["Opened"].isna() | df["Closed"].isna() | (df["Opened"] <= df["Closed"])
     ),
     
-    error="Chronological order violated: check Opened, Closed edition dates."
+    error="opened_after_closed"
 )
 
 # Validate chronological consistency between Competition start and end
@@ -202,7 +201,7 @@ Competition_date_check = pa.Check(
         
     ),
 
-    error="Chronological order violated:check Start, End Competition dates."
+    error="competition_start_after_end"
 )
 
 
