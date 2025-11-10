@@ -1,8 +1,6 @@
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-
 from datetime import datetime, timedelta
-
 
 from src.data_clean import data_clean_I
 from src.data_clean_II import data_clean_II
@@ -17,7 +15,6 @@ default_args = {
     'retries':5,
     'retry_delay':timedelta(minutes=2)
 
-
 }
 
 
@@ -27,13 +24,14 @@ with DAG (
     description='practice',
     default_args=default_args,
     start_date=datetime(2025,11,9),
-    schedule_interval='@weekly'
+    schedule_interval='@weekly',
+    catchup=False
 
 
 
 )as dag:
     
-
+    # TASK 1: Scrape Athlete Data
     scrap_athletes_task=PythonOperator(
 
     task_id = "scrap_athletes",
@@ -41,6 +39,8 @@ with DAG (
 
     )
 
+    # TASK 2: Scrape Olympic Editions Data
+    # Handles initial cleanup, normalization, and formatting.
     scrap_editions_task=PythonOperator(
 
     task_id = "scrap_editions",
@@ -48,12 +48,18 @@ with DAG (
 
     )
 
+    # TASK 3: Data Cleaning - Stage I
+    # Handles initial cleanup, normalization, and formatting.
     data_clean_I_task=PythonOperator(
 
         task_id = "data_clean_I",
         python_callable=data_clean_I
 
     )
+
+    # TASK 4: Data Cleaning - Stage II
+    # Performs advanced cleaning and imputation on cleaned data.
+
     data_clean_II_task=PythonOperator(
 
         task_id = "data_clean_II",
@@ -61,13 +67,7 @@ with DAG (
 
     )
 
-    column_rename_reorder_task=PythonOperator(
-
-        task_id = "column_rename_reorder",
-        python_callable=column_rename_reorder
-
-    )
-
+    # TASK 5: Data Validation & Quality Checks
     data_validation_quality_checks_task=PythonOperator(
 
         task_id = "data_validation_quality_checks",
@@ -75,7 +75,15 @@ with DAG (
 
     )
 
+    # TASK 6: Rename & Reorder Columns for Final Data Warehouse Format
+    column_rename_reorder_task=PythonOperator(
 
+        task_id = "column_rename_reorder",
+        python_callable=column_rename_reorder
+
+    )
+
+# Scraping → Cleaning → Validation → Formatting
 scrap_athletes_task \
 >> scrap_editions_task \
 >> data_clean_I_task \
