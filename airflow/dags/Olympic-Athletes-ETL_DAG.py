@@ -90,4 +90,3 @@ scrap_athletes_task \
 >> data_clean_II_task \
 >> data_validation_quality_checks_task \
 >> column_rename_reorder_task
-

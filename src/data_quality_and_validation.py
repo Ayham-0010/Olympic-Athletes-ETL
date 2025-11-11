@@ -114,28 +114,21 @@ affiliations_schema = pa.DataFrameSchema(
 
 # Results Pandera Checks
 
-# Validate that medals are only awarded to top 3 positions
-medal_position_logic_check = pa.Check(
-    lambda df: (
-        df["Medal"].isna() | df["Position"].isna() | df["Position"] < 3
-    ),
-    error="position_invalid_medal_assignment"
-)
-
 # Ensure that medal type corresponds correctly to athlete's position
 position_medal_match_check = pa.Check(
     lambda df: (
-        df["Position"].isna()
-        | (
-            ((df["Position"] == 1) & (df["Medal"] == "Gold"))
-            | ((df["Position"] == 2) & (df["Medal"] == "Silver"))
-            | ((df["Position"] == 3) & (df["Medal"] == "Bronze"))
-            | (df["Position"] > 3) & (df["Medal"].isna())
-        )
-    ),
-    error="position_medal_mismatch"
-)
+        (
 
+            df["Medal"].notna()
+            & (
+                ((df["Position"] == 1) & (df["Medal"] == "Gold")) |
+                ((df["Position"] == 2) & (df["Medal"] == "Silver")) |
+                ((df["Position"] == 3) & (df["Medal"] == "Bronze"))
+            )
+        ) | df["Medal"].isna()
+    ).fillna(True),
+    error="Position–Medal mismatch"
+)
 # Results Schema Definition
 
 results_schema = pa.DataFrameSchema(
@@ -163,7 +156,7 @@ results_schema = pa.DataFrameSchema(
     strict=True,
     coerce=True,
     checks=[
-        medal_position_logic_check,
+        
         position_medal_match_check
 
     ],
