@@ -137,10 +137,10 @@ def column_rename_reorder():
     logger.info("Renamed and ordered all dataframes according to DW conventions")
 
     # Save final versions to silver bucket
-    dim_athletes_df.to_parquet(f"s3://{gold_bucket}/data_clean_final/dim_athletes.parquet", index=False, storage_options=s3fs_opts)
-    dim_affiliations_df.to_parquet(f"s3://{gold_bucket}/data_clean_final/dim_affiliations.parquet", index=False, storage_options=s3fs_opts)
-    bridge_athletes_affiliations_df.to_parquet(f"s3://{gold_bucket}/data_clean_final/bridge_athletes_affiliations.parquet", index=False, storage_options=s3fs_opts)
-    dim_games_df.to_parquet(f"s3://{gold_bucket}/data_clean_final/dim_games.parquet", index=False, storage_options=s3fs_opts)
-    fct_results_df.to_parquet(f"s3://{gold_bucket}/data_clean_final/fct_results.parquet", index=False, storage_options=s3fs_opts)
+    dim_athletes_df.to_parquet(f"s3://{gold_bucket}/clean_data_final/dim_athletes.parquet", index=False, storage_options=s3fs_opts)
+    dim_affiliations_df.to_parquet(f"s3://{gold_bucket}/clean_data_final/dim_affiliations.parquet", index=False, storage_options=s3fs_opts)
+    bridge_athletes_affiliations_df.to_parquet(f"s3://{gold_bucket}/clean_data_final/bridge_athletes_affiliations.parquet", index=False, storage_options=s3fs_opts)
+    dim_games_df.to_parquet(f"s3://{gold_bucket}/clean_data_final/dim_games.parquet", index=False, storage_options=s3fs_opts)
+    fct_results_df.to_parquet(f"s3://{gold_bucket}/clean_data_final/fct_results.parquet", index=False, storage_options=s3fs_opts)
 
     logger.info("Final cleaned data saved to silver bucket")
