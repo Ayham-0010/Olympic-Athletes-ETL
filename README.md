@@ -7,8 +7,9 @@ A reproducible, container-friendly ETL pipeline that scrapes, cleans, validates 
 - [Key features](#key-features)
 - [Repository layout](#repository-layout)
 - [Data flow](#data-flow)
-- [Quickstart](#quickstart)
+- [Quick Start](#quick-start)
 - [License & contact](#license--contact)
+
 
 ## Project overview
 This repository collects Olympic athletes data from public sources, applies a set of cleaning and enrichment steps, and produces a set of analytic-ready tables:
@@ -158,3 +159,11 @@ Monitor task progress, logs, and status from the Airflow UI.
 Bronze bucket: Raw scraped data.<br>
 Silver bucket: Cleaned and validated datasets.<br>
 Gold bucket: Final warehouse-ready datasets after renaming and reordering.
+
+
+## License & contact
+
+**License**: All Rights Reserved.<br>This code is for personal/offline use only 
+
+Email: ayham.zinedine01@gmail.com<br>
+Linkedin: https://www.linkedin.com/in/ayham-zinedine-b8ab18291/
