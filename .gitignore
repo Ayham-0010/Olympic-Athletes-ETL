@@ -15,7 +15,7 @@ clean_data_II/
 data_clean_final/
 failure_cases/
 logs/
-
+readme/
 postgres-db-volume/
 pgadmin-data/
 minio-data/

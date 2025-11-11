@@ -285,7 +285,7 @@ def scrap_athletes():
                 
 
                 except Exception as e:
-                    errors.append(i)
+                    errors.append((i, str(e)))
                     logger.error(f"Error scraping athlete {i}: {e}")
 
 
@@ -302,9 +302,19 @@ def scrap_athletes():
 
     logger.info("Saving final data files.")
 
-    with open("errors.txt", "w") as file:
-        for err in errors:
-            file.write(str(err) + "\n")
 
-    logger.info(f"{len(errors)} Errors logged to errors.txt.")
+    if errors:
+        # errors is now a list of tuples: (athlete_id, exception)
+        failed_athletes_df = pd.DataFrame(errors, columns=["failed_athlete_id", "error_message"])
+        
+        # Convert error_message to string for consistent Parquet schema
+        failed_athletes_df["error_message"] = failed_athletes_df["error_message"].astype(str)
+        
+        failed_athletes_df.to_parquet(f"s3://{bronze_bucket}/scrape_failures/failed_athletes.parquet",index=False,storage_options=s3fs_opts)
+        
+        logger.info(f"Saved {len(errors)} failed athlete IDs with error details to Bronze layer.")
+    else:
+        logger.info("No scraping errors - all athletes processed successfully.")
+        
+  
     logger.info("Scraping completed.")

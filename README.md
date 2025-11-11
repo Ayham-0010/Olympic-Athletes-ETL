@@ -20,7 +20,7 @@ This repository collects Olympic athletes data from public sources, applies a se
 - dim_games.parquet — Olympic games dimension
 - fct_results.parquet — results fact table
 
-The pipeline emphasizes reproducibility, modular code (scrapers, cleaning, validation), and Airflow orchestration for scheduling and observability. Processed outputs are kept in minio s3 storage `gold/data_clean_final/`.
+The pipeline emphasizes reproducibility, modular code (scrapers, cleaning, validation), and Airflow orchestration for scheduling and observability. Processed outputs are kept in minio s3 storage `gold/clean_data_final/`.
 
 
 ## Key Features
@@ -31,6 +31,7 @@ The Olympic Athletes ETL project offers several professional-grade features that
 - Individual athlete and Olympic edition scrapers are **idempotent**.  
 - Can resume from partial runs to avoid data loss during interruptions.  
 - Reduces redundant processing and increases pipeline reliability.
+- failed IDs are logged and saved which enables easy tracking and re-processing.
 
 ### 2. Advanced Data Cleaning & Imputation
 - Handles missing values with **domain-specific strategies**:
@@ -135,7 +136,6 @@ This will spin up:
 * Airflow Webserver and Scheduler.
 * Airflow Triggerer.
 * MinIO object storage with Bronze, Silver, and Gold buckets.
-* PgAdmin for database management.
 
 ## 3. Access the Airflow UI
 
