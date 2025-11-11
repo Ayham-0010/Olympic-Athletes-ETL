@@ -98,9 +98,8 @@ def impute_Born_Country_by_NOC(bios_df, iso_df):
 def impute_games_and_competition_dates(df):
     """
     Fills missing Games and Competition date fields where possible:
-      - If 'Opened' missing but 'Competition_Start' present, fill 'Opened' (and vice versa).
-      - If 'Closed' missing but 'Competition_End' present, fill 'Closed' (and vice versa).
-    Adds boolean flags indicating which fields were imputed.
+      - If 'Opened' missing but 'Competition_Start' present, fill 'Opened' 
+      - If 'Closed' missing but 'Competition_End' present, fill 'Closed'
     """
 
     df = df.copy()
@@ -108,26 +107,18 @@ def impute_games_and_competition_dates(df):
     # Initialize all imputation flags to False
     df["Opened_Imputed"] = False
     df["Closed_Imputed"] = False
-    df["Competition_Start_Imputed"] = False
-    df["Competition_End_Imputed"] = False
 
     # Identify missing - available pairs
     opened_from_start_mask = df["Opened"].isna() & df["Competition_Start"].notna()
     closed_from_end_mask = df["Closed"].isna() & df["Competition_End"].notna()
-    start_from_opened_mask = df["Competition_Start"].isna() & df["Opened"].notna()
-    end_from_closed_mask = df["Competition_End"].isna() & df["Closed"].notna()
 
     # # Perform imputations
-    df.loc[start_from_opened_mask, "Competition_Start"] = df.loc[start_from_opened_mask, "Opened"]
-    df.loc[end_from_closed_mask, "Competition_End"] = df.loc[end_from_closed_mask, "Closed"]
     df.loc[opened_from_start_mask, "Opened"] = df.loc[opened_from_start_mask, "Competition_Start"]
     df.loc[closed_from_end_mask, "Closed"] = df.loc[closed_from_end_mask, "Competition_End"]
 
     # Mark imputed records
     df.loc[opened_from_start_mask, "Opened_Imputed"] = True
     df.loc[closed_from_end_mask, "Closed_Imputed"] = True
-    df.loc[start_from_opened_mask, "Competition_Start_Imputed"] = True
-    df.loc[end_from_closed_mask, "Competition_End_Imputed"] = True
 
     return df
 
