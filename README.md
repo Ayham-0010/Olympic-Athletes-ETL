@@ -22,6 +22,8 @@ This repository collects Olympic athletes data from public sources, applies a se
 
 The pipeline emphasizes reproducibility, modular code (scrapers, cleaning, validation), and Airflow orchestration for scheduling and observability. Processed outputs are kept in minio s3 storage `gold/clean_data_final/`.
 
+**→ [Explore the complete results & data preview here](https://github.com/Ayham-0010/Olympic-Athletes-ETL/blob/main/nootbooks/results_preview.ipynb)**  
+
 
 ## Key Features
 
