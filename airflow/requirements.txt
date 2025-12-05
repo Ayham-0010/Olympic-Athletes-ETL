@@ -1,5 +1,6 @@
-apache-airflow-providers-postgres==5.6.0
-apache-airflow-providers-amazon==9.6.0
+apache-airflow-providers-postgres
+apache-airflow-providers-amazon
+apache-airflow-providers-docker
 pandas
 numpy
 requests
@@ -10,6 +11,7 @@ html5lib
 pandera
 rapidfuzz
 s3fs 
+
 
 
 
