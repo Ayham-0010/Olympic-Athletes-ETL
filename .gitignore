@@ -51,3 +51,11 @@ plugins/__pycache__/
 
 # Optional: local Airflow run files
 airflow-webserver.pid
+
+# aws_migration
+
+aws_migration/volume/
+aws_migration/.env
+# aws_migration/.aws
+aws_migration/glue.txt
+aws_migration/aws-airflow-conn.txt
