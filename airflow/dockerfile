@@ -1,5 +1,15 @@
-FROM apache/airflow:2.10.5
-COPY requirements.txt /requirements.txt
-RUN pip install --no-cache-dir --upgrade pip
-RUN pip install --no-cache-dir -r /requirements.txt
+# FROM apache/airflow:2.10.5
+# COPY requirements.txt /requirements.txt
+# RUN pip install --no-cache-dir --upgrade pip
+# RUN pip install --no-cache-dir -r /requirements.txt
 
+
+FROM apache/airflow:2.10.5
+
+COPY requirements.txt /requirements.txt
+
+RUN pip install --no-cache-dir --upgrade pip
+
+# Install with airflow constraints
+RUN pip install --no-cache-dir -r /requirements.txt \
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.10.5/constraints-3.10.txt"
