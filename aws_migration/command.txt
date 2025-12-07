@@ -1,0 +1,1 @@
+docker build -t aws-glue-5-extended:1.0 .

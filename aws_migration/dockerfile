@@ -1,0 +1,5 @@
+FROM public.ecr.aws/glue/aws-glue-libs:5
+
+USER root
+RUN pip install --no-cache-dir pandas beautifulsoup4 lxml requests
+# USER glue
