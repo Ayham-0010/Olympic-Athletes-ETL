@@ -12,7 +12,7 @@ default_args = {
 }
 
 with DAG(
-    dag_id="aws_demo_etl_glue5_1",
+    dag_id="aws_demo_etl_glue5_",
     start_date=datetime(2025, 1, 1),
     schedule_interval=None,          # manual trigger for demo
     catchup=False,

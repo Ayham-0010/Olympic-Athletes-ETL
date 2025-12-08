@@ -12,6 +12,9 @@ import numpy as np
 import requests
 from bs4 import BeautifulSoup
 
+from pyspark.sql.types import (StructType, StructField, StringType, IntegerType, ArrayType)
+from pyspark.sql import Row
+
 from awsglue.utils import getResolvedOptions
 from awsglue.context import GlueContext
 from awsglue.job import Job
@@ -62,6 +65,7 @@ def biodata_from_soup(soup: BeautifulSoup, athlete_id: int) -> Dict:
     table = soup.find("table", {"class": "biodata"})
     if not table:
         raise ValueError(f"No biodata table for athlete {athlete_id}")
+    # Roles,Sex,Full name,Used name,Born,Measurements,Affiliations,NOC,Athlete_Id,Died,Nick/petnames,Title(s),Other names,Nationality,Original name,Name order
     # Using pandas read_html to preserve the same behavior
     df = pd.read_html(StringIO(str(table)), index_col=0)[0]
     df = df.T
@@ -77,6 +81,7 @@ def results_from_soup(soup: BeautifulSoup, athlete_id: int) -> List[Dict]:
     if not table:
         # Return empty list if no results
         return []
+    # Games,Event,Team,Pos,Medal,As,NOC,Discipline,Athlete_Id,Nationality,Unnamed: 7
     df = pd.read_html(StringIO(str(table)))[0]
     # Create expected columns if missing
     for col in ["NOC / Team", "Discipline (Sport) / Event", "As", "Games"]:
@@ -104,6 +109,47 @@ def results_from_soup(soup: BeautifulSoup, athlete_id: int) -> List[Dict]:
         d['Athlete_Id'] = int(athlete_id)
         out.append(d)
     return out
+
+
+
+
+# ===================================================================
+# Define the complete schema once and forever
+# ===================================================================
+
+BIODATA_COLUMNS = [
+    "Roles", "Sex", "Full name", "Used name", "Born", "Died",
+    "Measurements", "Nick/petnames", "Title(s)", "Other names",
+    "Original name", "Name order", "Nationality",
+    "Affiliations", "NOC",
+    "Athlete_Id"
+]
+
+RESULTS_COLUMNS = [
+    "Games", "Event", "Team", "Pos", "Medal", "As",
+    "NOC", "Discipline", "Nationality", "Athlete_Id"
+]
+
+# ----------------------------
+# Utility Functions
+# ----------------------------
+
+def enforce_biodata_schema(raw: Dict) -> Dict:
+    """Return a dict that contains ONLY BIODATA_COLUMNS and fills missing fields with None."""
+    clean = {}
+    for col in BIODATA_COLUMNS:
+        clean[col] = None if col not in raw else raw[col]
+    return clean
+
+
+def enforce_results_schema(raw: Dict) -> Dict:
+    """Return a dict that contains ONLY RESULTS_COLUMNS and fills missing fields with None."""
+    clean = {}
+    for col in RESULTS_COLUMNS:
+        clean[col] = None if col not in raw else raw[col]
+    return clean
+
+
 
 # ----------------------------
 # Partition scraping function
@@ -148,7 +194,7 @@ def scrape_partition(ids_iter: Iterator[int]) -> Iterator[Tuple[str, Dict]]:
             soup = BeautifulSoup(response.content, "html.parser")
             try:
                 bio = biodata_from_soup(soup, athlete_id)
-                yield ("biodata", bio)
+                yield ("biodata", enforce_biodata_schema(bio))
             except Exception as e:
                 # missing biodata -> error
                 yield ("error", {"Athlete_Id": athlete_id, "error_message": f"biodata_error: {e}"})
@@ -157,7 +203,7 @@ def scrape_partition(ids_iter: Iterator[int]) -> Iterator[Tuple[str, Dict]]:
                 results = results_from_soup(soup, athlete_id)
                 # results may be many rows
                 for r in results:
-                    yield ("results", r)
+                    yield ("results", enforce_results_schema(r))
             except Exception as e:
                 # missing results -> still continue
                 yield ("error", {"Athlete_Id": athlete_id, "error_message": f"results_error: {e}"})
@@ -179,12 +225,53 @@ def read_scraped_ids(spark_session):
         # We assume checkpoint files have an Athlete_Id column for biodata and results
         df = spark_session.read.parquet(CHECKPOINTS_PREFIX + "/*")
         if "Athlete_Id" in df.columns:
-            scraped = set([int(x) for x in df.select("Athlete_Id").distinct().rdd.flatMap(lambda x: x).collect()])
+            
+            # scraped = set([int(x) for x in df.select("Athlete_Id").distinct().rdd.flatMap(lambda x: x).collect()])
+            scraped = set({int(row.Athlete_Id) for row in df.select("Athlete_Id").distinct().collect()})
+
     except Exception as e:
         # no checkpoints or no files - treat as empty
         pass
     return scraped
 
+
+
+
+# ===================================================================
+# Define schemas ONCE at the top of your file
+# ===================================================================
+
+BIODATA_SCHEMA = StructType([
+    StructField("Roles",          StringType(), True),
+    StructField("Sex",            StringType(), True),
+    StructField("Full name",      StringType(), True),
+    StructField("Used name",      StringType(), True),
+    StructField("Born",           StringType(), True),
+    StructField("Died",           StringType(), True),
+    StructField("Measurements",   StringType(), True),
+    StructField("Nick/petnames",  StringType(), True),
+    StructField("Title(s)",       StringType(), True),
+    StructField("Other names",    StringType(), True),
+    StructField("Original name",  StringType(), True),
+    StructField("Name order",     StringType(), True),
+    StructField("Nationality",    StringType(), True),
+    StructField("Affiliations",   StringType(), True),
+    StructField("NOC",            StringType(), True),
+    StructField("Athlete_Id",     IntegerType(), False),
+])
+
+RESULTS_SCHEMA = StructType([
+    StructField("Games",        StringType(),  True),
+    StructField("Event",        StringType(),  True),
+    StructField("Team",         StringType(),  True),
+    StructField("Pos",          StringType(),  True),
+    StructField("Medal",        StringType(),  True),
+    StructField("As",           StringType(),  True),
+    StructField("NOC",          StringType(),  True),
+    StructField("Discipline",   StringType(),  True),
+    StructField("Nationality",  StringType(),  True),
+    StructField("Athlete_Id",   IntegerType(), False),
+])
 
 # ----------------------------
 # Main pipeline
@@ -215,8 +302,21 @@ def main():
 
     # If there are zero rows, attempt to create empty DF with schema
     # We'll infer schema by taking a small sample to create DataFrame safely
-    biodata_df = spark.createDataFrame(biodata_rdd) if not biodata_rdd.isEmpty() else None
-    results_df = spark.createDataFrame(results_rdd) if not results_rdd.isEmpty() else None
+    
+    # biodata_df = spark.createDataFrame(biodata_rdd, schema=BIODATA_SCHEMA) if not biodata_rdd.isEmpty() else None
+    # results_df = spark.createDataFrame(results_rdd,schema= RESULTS_SCHEMA) if not results_rdd.isEmpty() else None
+    
+    
+
+    # Safe DataFrame creation that preserves non-nullable integers
+    def to_df_safe(rdd, schema):
+        if rdd.isEmpty():
+            return None
+        return rdd.map(lambda d: Row(**d)).toDF(schema)
+
+    biodata_df = to_df_safe(biodata_rdd, BIODATA_SCHEMA)
+    results_df = to_df_safe(results_rdd, RESULTS_SCHEMA)
+
     errors_df = spark.createDataFrame(errors_rdd) if not errors_rdd.isEmpty() else None
 
     # Persist partition-level checkpoint: write partitioned outputs to checkpoints folder
