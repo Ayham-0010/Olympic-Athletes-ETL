@@ -113,9 +113,9 @@ def results_from_soup(soup: BeautifulSoup, athlete_id: int) -> List[Dict]:
 
 
 
-# ===================================================================
-# Define the complete schema once and forever
-# ===================================================================
+# ----------------------------
+# List of columns
+# ----------------------------
 
 BIODATA_COLUMNS = [
     "Roles", "Sex", "Full name", "Used name", "Born", "Died",
@@ -235,11 +235,9 @@ def read_scraped_ids(spark_session):
     return scraped
 
 
-
-
-# ===================================================================
-# Define schemas ONCE at the top of your file
-# ===================================================================
+# ----------------------------
+# Define schemas
+# ----------------------------
 
 BIODATA_SCHEMA = StructType([
     StructField("Roles",          StringType(), True),
@@ -272,6 +270,7 @@ RESULTS_SCHEMA = StructType([
     StructField("Nationality",  StringType(),  True),
     StructField("Athlete_Id",   IntegerType(), False),
 ])
+
 
 # ----------------------------
 # Main pipeline
