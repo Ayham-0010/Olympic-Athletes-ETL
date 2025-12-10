@@ -644,14 +644,14 @@ cleaned_editions = clean_editions(editions_df)
 # ---------------------------------------------------------------------
 # 4. Write to Silver bucket (LocalStack S3)
 # ---------------------------------------------------------------------
-silver_base = "s3://silver/olympic_clean/"
+silver_base = "s3://silver/clean_data_I/"
 
 paths = {
-    "biodata": silver_base + "biodata/",
-    "dim_affiliation": silver_base + "dim_affiliation/",
-    "bridge_affiliation": silver_base + "bridge_affiliation/",
-    "results": silver_base + "results/",
-    "editions": silver_base + "editions/",
+    "biodata": silver_base + "cleaned_biodata.parquet",
+    "dim_affiliation": silver_base + "dim_affiliation.parquet",
+    "bridge_affiliation": silver_base + "bridge_athlete_affiliation.parquet",
+    "results": silver_base + "cleaned_results.parquet",
+    "editions": silver_base + "cleaned_editions.parquet",
 }
 
 print("=== Writing Silver Outputs ===")
