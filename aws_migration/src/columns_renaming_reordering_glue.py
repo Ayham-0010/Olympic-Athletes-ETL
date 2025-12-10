@@ -140,11 +140,11 @@ fct_results_df = rename_and_reorder_spark(results_df, events_fct_table_columns_n
 def write_single(df, path):
     df.coalesce(1).write.mode("overwrite").parquet(path)
 
-write_single(dim_athletes_df, f"{gold}/dim_athletes/")
-write_single(dim_affiliations_df, f"{gold}/dim_affiliations/")
-write_single(bridge_ath_aff_df, f"{gold}/bridge_athletes_affiliations/")
-write_single(dim_games_df, f"{gold}/dim_games/")
-write_single(fct_results_df, f"{gold}/fct_results/")
+write_single(dim_athletes_df, f"{gold}/dim_athletes.parquet")
+write_single(dim_affiliations_df, f"{gold}/dim_affiliations.parquet")
+write_single(bridge_ath_aff_df, f"{gold}/bridge_athletes_affiliations.parquet")
+write_single(dim_games_df, f"{gold}/dim_games.parquet")
+write_single(fct_results_df, f"{gold}/fct_results.parquet")
 
 # ---------------------------------------------------------------------
 # CONFIRMATION
