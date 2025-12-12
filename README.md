@@ -21,10 +21,10 @@ This Python + Pandas + Panderas + Airflow + MinIO powered ETL pipeline collects 
 
 
 ## Table of contents
-- [Key features](#key-features)
-- [Quick Start](#quick-start)
+- [Key Features (Pandas)](#key-features-pandas)
+- [Quick Start (Pandas)](#quick-start-pandas)
 
-## Key Features
+## Key Features (Pandas)
 
 The Olympic Athletes ETL project offers several professional-grade features that make it robust, auditable, and production-ready:
 
@@ -65,7 +65,7 @@ The Olympic Athletes ETL project offers several professional-grade features that
 > **Summary:** 
 The pipeline combines **robust scraping, intelligent cleaning, strict validation, and warehouse-ready formatting** in a fully orchestrated, auditable, and production-ready ETL workflow.
 
-## Quick Start
+## Quick Start (Pandas)
 
 Follow these steps to get the Olympic Athletes ETL pipeline running locally using Docker and Airflow.
 
@@ -123,13 +123,14 @@ A fully local, production-style AWS Glue (PySpark) ETL pipeline for the Olympic 
 
 ## Table of contents
 
-- [Key features](#key-features)
+## Table of contents
+- [Key Features (AWS Glue / Spark)](#key-features-aws-glue--spark)
 - [Design Decisions and Migration Rationale](#design-decisions-and-migration-rationale)
 - [Future Improvements](#future-improvements)
-- [Quick Start](#quick-start)
+- [Quick Start (AWS Glue + LocalStack)](#quick-start-aws-glue--localstack)
 
 
-# Key Features
+# Key Features (AWS Glue / Spark)
 
 <h3>1. Distributed & Resumable Scraping (Spark + RDD Partitions)</h3>
 
@@ -227,7 +228,7 @@ While migrating from Pandas → Spark, the following principles were applied:
 * Enforce quality gates before publishing downstream datasets
 
 
-# Quick Start (AWS Glue 5 + LocalStack + Airflow)
+# Quick Start (AWS Glue + LocalStack)
 
 This section explains how to run the AWS-native Spark ETL pipeline locally, using:
 
