@@ -1,4 +1,4 @@
-# Project Overview
+# Olympic-Athletes-ETL-From-Pandas-to-AWS-Glue
 End-to-end Olympic athletes ETL pipeline: scrapes, cleans, validates, and transforms data of 147,000+ athletes into warehouse-ready format following the Bronze/Silver/Gold medallion architecture..
 
 This project demonstrates a full modernization of a legacy Python/Pandas ETL into a cloud-ready, AWS-native Spark pipeline, while still running entirely locally and free.
@@ -6,7 +6,6 @@ This project demonstrates a full modernization of a legacy Python/Pandas ETL int
 Originally implemented using Python + Pandas + Airflow + MinIO, the ETL has been rebuilt using PySpark and AWS Glue conventions, emulated with LocalStack.
 
 ## Table of contents
-- [Project overview](#project-overview)
 - [Pandas Olympic Athletes ETL](#pandas-olympic-athletes-etl)
 - [AWS Glue Olympic Athletes ETL](#aws-glue-olympic-athletes-etl)
 - [Repository layout](#repository-layout)
